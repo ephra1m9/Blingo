@@ -1,0 +1,15 @@
+services:
+  blingo-bot:
+    build: .
+    container_name: blingo-bot
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    networks:
+      - web-net
+    restart: unless-stopped
+
+networks:
+  web-net:
+    external: true
