@@ -6,6 +6,7 @@ from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 
 from src.handlers import router
+from src.db.db_connect import close_db
 from src.webhook import create_webhook_app
 from src.config import WEBHOOK_PORT
 
@@ -21,10 +22,15 @@ logging.basicConfig(
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 
+async def on_shutdown():
+    await close_db()
+
+
 async def main():
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
     dp.include_router(router)
+    dp.shutdown.register(on_shutdown)
 
     # Создаём webhook-приложение и передаём ему экземпляр бота
     webhook_app = create_webhook_app(bot)

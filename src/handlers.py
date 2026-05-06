@@ -11,6 +11,9 @@ from .config import (
     MAX_AMOUNT,
     COMMISSION,
 )
+from .db.db_helper import (
+    get_or_create_user
+)
 from .freekassa_payments import create_payment_url
 
 
@@ -20,7 +23,10 @@ logger = logging.getLogger(__name__)
 
 @router.message(CommandStart())
 async def cmd_start(m: Message):
+    user_id = m.from_user.id
     user_name = m.from_user.full_name
+
+    user, is_now = await get_or_create_user(user_id, user_name)
 
     await m.answer(
         f"Привет <b>{user_name}</b>! 👋\n\n"
