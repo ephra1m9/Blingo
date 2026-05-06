@@ -59,6 +59,14 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
         logger.error(f"Ошибка чтения IPN от FreeKassa: {e}")
         return web.Response(status=400, text="Bad Request")
 
+    # Логируем ВСЕ параметры для отладки
+    logger.info(f"IPN FreeKassa RAW params: {dict(data)}")
+
+    # FreeKassa отправляет status_check=1 для проверки доступности URL
+    if data.get("status_check") == "1":
+        logger.info("FreeKassa status_check: отвечаем YES")
+        return web.Response(status=200, text="YES")
+
     shop_id = data.get("MERCHANT_ID", "")
     amount = data.get("AMOUNT", "")
     order_id_str = data.get("MERCHANT_ORDER_ID", "")

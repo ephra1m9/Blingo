@@ -7,15 +7,16 @@ from .order_storage import order_storage
 
 logger = logging.getLogger(__name__)
 
-FREEKASSA_PAY_URL = "https://pay.freekassa.com/"
+FREEKASSA_PAY_URL = "https://pay.fk.money/"
 
 
-def _make_sign(shop_id: str, amount: str, secret: str, order_id: str) -> str:
+def _make_sign(shop_id: str, amount: str, secret: str, currency: str, order_id: str) -> str:
     """
-    Формирует MD5-подпись для FreeKassa.
-    Актуальный формат: MD5(shop_id:amount:secret:order_id)
+    Формирует MD5-подпись для платёжной формы FreeKassa.
+    Формат (раздел 1.5 документации): MD5(shop_id:amount:secret:currency:order_id)
+    Пример из документации: md5('7012:100.11:secret:RUB:154')
     """
-    raw = f"{shop_id}:{amount}:{secret}:{order_id}"
+    raw = f"{shop_id}:{amount}:{secret}:{currency}:{order_id}"
     return hashlib.md5(raw.encode("utf-8")).hexdigest()
 
 
@@ -41,12 +42,14 @@ def create_payment_url(amount_rub: int, steam_login: str, user_id: int) -> tuple
     )
 
     amount_str = str(total_rub)
+    currency = "RUB"
     order_id_str = str(order_id)
 
     sign = _make_sign(
         shop_id=FREEKASSA_SHOP_ID,
         amount=amount_str,
         secret=FREEKASSA_SECRET1,
+        currency=currency,
         order_id=order_id_str,
     )
 
