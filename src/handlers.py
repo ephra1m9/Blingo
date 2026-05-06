@@ -1,8 +1,9 @@
 import logging
+from pathlib import Path
 
 from aiogram import Router
 from aiogram.filters import Command, CommandObject, CommandStart
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 
 from .config import (
     STEAM_LOGIN_RE,
@@ -22,11 +23,14 @@ async def cmd_start(m: Message):
     user_name = m.from_user.full_name
 
     await m.answer(
-        f"Привет <b>{user_name}</b>!\n\n"
-        f"Пополнение стим - 2%\n"
-        f"При оплате по QR - 5%\n\n"
-        f"Для пополнения баланса Steam используй команду /pay",
+        f"Привет <b>{user_name}</b>! 👋\n\n"
+        f"Пополнение стим — 2%\n"
+        f"При оплате по QR — 5%\n\n"
+        f"Для пополнения баланса Steam используй команду /pay\n\n"
+        f"<a href='https://telegra.ph/Politika-konfidencialnosti-servisa-Blingo-Buy-05-06'>Политика конфиденциальности</a>\n"
+        f"<a href='https://telegra.ph/Polzovatelskoe-soglashenie-servisa-Blingo-Buy-05-06'>Пользовательское соглашение</a>",
         parse_mode="HTML",
+        disable_web_page_preview=True
     )
 
 
