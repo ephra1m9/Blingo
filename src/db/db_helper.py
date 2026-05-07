@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from .db_connect import get_async_session
 from .models import UserInfo, OrdersHistory
+from ..config import ORDER_STATUS
 
 
 async def get_or_create_user(user_id: int, user_name: str | None = None) -> tuple[UserInfo | None, bool]:
@@ -59,3 +60,21 @@ async def get_order(order_id: int) -> OrdersHistory | None:
         except Exception as e:
             logging.error(f"Ошибка при получении заказа #{order_id}: {e}")
             return None
+
+
+async def change_order_status(order_id: int, status: int) -> bool:
+    """Изменить статус заказа"""
+    async with get_async_session() as session:
+        try:
+            order = await session.get(OrdersHistory, order_id)
+            if not order:
+                logging.warning(f"Заказ #{order_id} не найден при попытке изменить статус")
+                return False
+            order.status = ORDER_STATUS[str(status)]
+            await session.commit()
+            logging.info(f"Статус заказа #{order_id} изменён на '{ORDER_STATUS[str(status)]}'")
+            return True
+        except Exception as e:
+            await session.rollback()
+            logging.error(f"Ошибка при изменении статуса заказа #{order_id}: {e}")
+            return False

@@ -19,3 +19,11 @@ FREEKASSA_SECRET2 = os.getenv("FREEKASSA_SECRET2")   # для проверки I
 
 # Webhook
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "8080"))
+
+# Статусы заказа
+ORDER_STATUS = {
+    "0": "Создан",
+    "1": "Оплачен",
+    "2": "Выполнен",
+    "3": "Отменён"
+}
