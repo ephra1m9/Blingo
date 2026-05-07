@@ -8,8 +8,11 @@ services:
       - "8080:8080"
     networks:
       - web-net
+      - mysql_net
     restart: unless-stopped
 
 networks:
   web-net:
+    external: true
+  mysql_net:
     external: true

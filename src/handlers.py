@@ -32,7 +32,7 @@ async def cmd_start(m: Message):
         f"Привет <b>{user_name}</b>! 👋\n\n"
         f"Пополнение стим — 2%\n"
         f"При оплате по QR — 5%\n\n"
-        f"Для пополнения баланса Steam используй команду /pay\n\n"
+        f"<tg-emoji emoji-id='5463392464314315076'>👉</tg-emoji> Для пополнения баланса Steam используй команду /pay\n\n"
         f"<a href='https://telegra.ph/Politika-konfidencialnosti-servisa-Blingo-Buy-05-06'>Политика конфиденциальности</a>\n"
         f"<a href='https://telegra.ph/Polzovatelskoe-soglashenie-servisa-Blingo-Buy-05-06'>Пользовательское соглашение</a>",
         parse_mode="HTML",
