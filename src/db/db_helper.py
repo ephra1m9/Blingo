@@ -26,3 +26,21 @@ async def get_or_create_user(user_id: int, user_name: str | None = None) -> tupl
                 return None, False
             
         return user, False
+    
+
+async def create_order(user_id: int, amount: int):
+    """Создать новый заказ"""
+    async with get_async_session() as session:
+        try:
+            order = OrdersHistory(
+                user_id=user_id,
+                amount=amount
+            )
+
+            session.add(order)
+            await session.commit()
+            logging.info(f"Добавлен новый заказ на пополнение, на сумму {amount}")
+
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Ошибка при создание заказа: {e}")
