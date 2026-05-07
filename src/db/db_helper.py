@@ -28,19 +28,34 @@ async def get_or_create_user(user_id: int, user_name: str | None = None) -> tupl
         return user, False
     
 
-async def create_order(user_id: int, amount: int):
-    """Создать новый заказ"""
+async def create_order(user_id: int, steam_login: str, amount: int) -> int | None:
+    """Создать новый заказ, вернуть order_id из БД"""
     async with get_async_session() as session:
         try:
             order = OrdersHistory(
                 user_id=user_id,
+                steam_login=steam_login,
                 amount=amount
             )
 
             session.add(order)
             await session.commit()
-            logging.info(f"Добавлен новый заказ на пополнение, на сумму {amount}")
+            await session.refresh(order)
+            logging.info(f"Добавлен новый заказ #{order.order_id} на сумму {amount} руб.")
+            return order.order_id
 
         except Exception as e:
-            session.rollback()
-            logging.error(f"Ошибка при создание заказа: {e}")
+            await session.rollback()
+            logging.error(f"Ошибка при создании заказа: {e}")
+            return None
+
+
+async def get_order(order_id: int) -> OrdersHistory | None:
+    """Получить заказ из БД по order_id"""
+    async with get_async_session() as session:
+        try:
+            order = await session.get(OrdersHistory, order_id)
+            return order
+        except Exception as e:
+            logging.error(f"Ошибка при получении заказа #{order_id}: {e}")
+            return None

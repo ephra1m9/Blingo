@@ -46,7 +46,7 @@ async def cmd_pay(m: Message, command: CommandObject):
         await m.answer(
             "❌ Укажи логин и сумму.\n\n"
             "Формат: <code>/pay [логин Steam] [сумма]</code>\n"
-            "Пример: <code>/pay username 1000</code>",
+            "Пример: <code>/pay durov 1000</code>",
             parse_mode="HTML",
         )
         return
@@ -57,7 +57,7 @@ async def cmd_pay(m: Message, command: CommandObject):
         await m.answer(
             "❌ Неверный формат команды.\n\n"
             "Формат: <code>/pay [логин Steam] [сумма]</code>\n"
-            "Пример: <code>/pay username 1000</code>",
+            "Пример: <code>/pay durov 1000</code>",
             parse_mode="HTML",
         )
         return
@@ -76,7 +76,7 @@ async def cmd_pay(m: Message, command: CommandObject):
     if not amount_raw.lstrip('-').isdigit():
         await m.answer(
             "❌ Сумма должна быть целым числом.\n\n"
-            "Пример: <code>/pay username 1000</code>",
+            "Пример: <code>/pay durov 1000</code>",
             parse_mode="HTML",
         )
         return
@@ -100,7 +100,7 @@ async def cmd_pay(m: Message, command: CommandObject):
     total = round(amount * (1 + COMMISSION))
 
     # Создаём ссылку на оплату через FreeKassa
-    payment_url, order_id = create_payment_url(
+    payment_url, order_id = await create_payment_url(
         amount_rub=amount,
         steam_login=login,
         user_id=m.from_user.id,
@@ -121,9 +121,9 @@ async def cmd_pay(m: Message, command: CommandObject):
         f"✅ <b>Заявка на пополнение:</b>\n\n"
         f"🎮 Логин Steam: <code>{login}</code>\n"
         f"💰 Сумма пополнения: <b>{amount} руб.</b>\n"
-        f"💳 К оплате (с комиссией 2%): <b>{total} руб.</b>\n\n"
-        f"Нажми кнопку ниже для оплаты. После успешной оплаты баланс Steam "
-        f"пополнится автоматически.",
+        f"💳 К оплате (с комиссией): <b>{total} руб.</b>\n\n"
+        f"Нажми кнопку ниже для оплаты.\n"
+        f"После успешной оплаты баланс Steam пополнится автоматически.",
         parse_mode="HTML",
         reply_markup=keyboard,
     )

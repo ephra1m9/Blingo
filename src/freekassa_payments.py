@@ -2,7 +2,7 @@ import hashlib
 import logging
 
 from .config import FREEKASSA_SHOP_ID, FREEKASSA_SECRET1, COMMISSION
-from .order_storage import order_storage
+from .db.db_helper import create_order
 
 
 logger = logging.getLogger(__name__)
@@ -20,9 +20,9 @@ def _make_sign(shop_id: str, amount: str, secret: str, currency: str, order_id: 
     return hashlib.md5(raw.encode("utf-8")).hexdigest()
 
 
-def create_payment_url(amount_rub: int, steam_login: str, user_id: int) -> tuple[str, int]:
+async def create_payment_url(amount_rub: int, steam_login: str, user_id: int) -> tuple[str, int]:
     """
-    Создаёт заказ в хранилище и формирует ссылку на страницу оплаты FreeKassa.
+    Создаёт заказ в БД и формирует ссылку на страницу оплаты FreeKassa.
 
     Args:
         amount_rub: Сумма пополнения Steam в рублях (без комиссии).
@@ -34,11 +34,11 @@ def create_payment_url(amount_rub: int, steam_login: str, user_id: int) -> tuple
     """
     total_rub = round(amount_rub * (1 + COMMISSION))
 
-    # Сохраняем данные заказа в хранилище, получаем числовой ID
-    order_id = order_storage.create(
-        steam_login=steam_login,
+    # Сохраняем заказ в БД, получаем числовой ID
+    order_id = await create_order(
         user_id=user_id,
-        amount_rub=amount_rub,
+        steam_login=steam_login,
+        amount=amount_rub,
     )
 
     amount_str = str(total_rub)

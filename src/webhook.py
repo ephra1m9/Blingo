@@ -5,7 +5,7 @@ from aiohttp import web
 from aiogram import Bot
 
 from .dessly.steam_transactions import get_usd_rate, rub_to_usd, steam_topup, is_success, get_status_label
-from .order_storage import order_storage
+from .db.db_helper import get_order
 from .config import FREEKASSA_SECRET2, FREEKASSA_SHOP_ID
 
 
@@ -45,11 +45,11 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
     FreeKassa отправляет POST с параметрами:
         MERCHANT_ID        — ID магазина
         AMOUNT             — сумма платежа
-        MERCHANT_ORDER_ID  — числовой order_id и�� нашего хранилища
+        MERCHANT_ORDER_ID  — числовой order_id из таблицы orders_history
         SIGN               — подпись MD5(MERCHANT_ID:AMOUNT:SECRET2:MERCHANT_ORDER_ID)
         intid              — внутренний ID транзакции FreeKassa
         P_EMAIL            — email плательщика (опционально)
-        CUR_ID             — вал��та
+        CUR_ID             — валюта
     """
     bot: Bot = request.app["bot"]
 
@@ -82,21 +82,21 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
         logger.warning(f"Неверная подпись IPN FreeKassa: order_id={order_id_str}")
         return web.Response(status=403, text="Invalid sign")
 
-    # Получаем данные заказа из хранилища
+    # Получаем данные заказа из БД
     try:
         order_id = int(order_id_str)
     except ValueError:
         logger.error(f"Неверный формат order_id: {order_id_str}")
         return web.Response(status=200, text="YES")
 
-    order = order_storage.get(order_id)
+    order = await get_order(order_id)
     if order is None:
-        logger.error(f"Заказ не найден или истёк: order_id={order_id}")
+        logger.error(f"Заказ не найден в БД: order_id={order_id}")
         return web.Response(status=200, text="YES")
 
     steam_login = order.steam_login
     user_id = order.user_id
-    amount_rub = order.amount_rub
+    amount_rub = order.amount
 
     logger.info(
         f"Обработка оплаты: user_id={user_id}, steam={steam_login}, amount_rub={amount_rub}"
@@ -129,8 +129,6 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
 
     if is_success(result):
         status_label = get_status_label(status)
-        # Удаляем заказ из хранилища после успешной обработки
-        order_storage.delete(order_id)
         try:
             await bot.send_message(
                 user_id,
@@ -139,7 +137,7 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
                 f"💰 Сумма: <b>{amount_rub} руб.</b> (~{amount_usd} USD)\n"
                 f"🔖 ID заказа: <code>{order_dessly_id}</code>\n"
                 f"📋 Статус: {status_label}\n\n"
-                f"Средства поступят на счёт в течение ��ескольких минут.",
+                f"Средства поступят на счёт в течение нескольких минут.",
                 parse_mode="HTML",
             )
         except Exception as e:
