@@ -38,7 +38,7 @@ async def create_payment_url(amount_rub: int, steam_login: str, user_id: int) ->
     if not shop_id or not secret1:
         raise ValueError("FREEKASSA_SHOP_ID или FREEKASSA_SECRET1 не заданы в переменных окружения")
 
-    total_rub = round(amount_rub * (1 + COMMISSION))
+    total_rub = round(amount_rub * (1 + COMMISSION / 100))
 
     # Сохраняем заказ в БД, получаем числовой ID
     order_id = await create_order(

@@ -6,7 +6,7 @@ from aiohttp import web
 from aiogram import Bot
 
 from .dessly.steam_transactions import get_usd_rate, rub_to_usd, steam_topup, is_success, get_status_label
-from .db.db_helper import get_order
+from .db.db_helper import get_order, update_order_after_payment
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def create_webhook_app(bot: Bot) -> web.Application:
 def _verify_sign(shop_id: str, amount: str, order_id: str, secret2: str, received_sign: str) -> bool:
     """
     Проверяет подпись IPN-уведомления от FreeKassa.
-    Актуальный формат: MD5(shop_id:amount:secret2:order_id)
+    Формат: MD5(shop_id:amount:secret2:order_id)
     """
     raw = f"{shop_id}:{amount}:{secret2}:{order_id}"
     expected = hashlib.md5(raw.encode("utf-8")).hexdigest()
@@ -120,16 +120,29 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
         logger.info(f"Конвертация: {amount_rub} RUB → {amount_usd} USD (курс {usd_rate})")
     except Exception as e:
         logger.error(f"Ошибка получения курса ЦБ РФ: {e}")
+        await update_order_after_payment(order_id, status=3)
         await _notify_error(bot, user_id, "Не удалось получить курс валют. Обратитесь в поддержку.")
         return web.Response(status=200, text="YES")
 
     # Создаём заказ на пополнение Steam через Dessly
-    result = await steam_topup(username=steam_login, amount_usd=amount_usd)
+    result = await steam_topup(
+        username=steam_login,
+        amount_usd=amount_usd,
+        reference=str(order_id),
+    )
 
     status = result.get("status", "error")
-    order_dessly_id = result.get("order_id", "—")
+    # Dessly возвращает transaction_id (UUID)
+    transaction_id = result.get("transaction_id")
 
     if is_success(result):
+        # Сохраняем статус "Оплачен" и transaction_id Dessly в БД
+        await update_order_after_payment(
+            order_id,
+            status=1,
+            dessly_order_id=str(transaction_id) if transaction_id is not None else None,
+        )
+
         status_label = get_status_label(status)
         try:
             await bot.send_message(
@@ -137,7 +150,7 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
                 f"✅ <b>Пополнение Steam отправлено!</b>\n\n"
                 f"🎮 Логин: <code>{steam_login}</code>\n"
                 f"💰 Сумма: <b>{amount_rub} руб.</b> (~{amount_usd} USD)\n"
-                f"🔖 ID заказа: <code>{order_dessly_id}</code>\n"
+                f"🔖 ID транзакции: <code>{transaction_id or '—'}</code>\n"
                 f"📋 Статус: {status_label}\n\n"
                 f"Средства поступят на счёт в течение нескольких минут.",
                 parse_mode="HTML",
@@ -150,6 +163,8 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
             f"Ошибка Dessly: status={status}, error={error_detail}, "
             f"user_id={user_id}, steam={steam_login}"
         )
+        # Сохраняем статус "Отменён" в БД
+        await update_order_after_payment(order_id, status=3)
         await _notify_error(
             bot,
             user_id,

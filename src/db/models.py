@@ -23,4 +23,5 @@ class OrdersHistory(SQLModel, table=True):
     user_id: int = Field(sa_column=Column(BigInteger()))
     steam_login: str = Field(default=None)
     amount: int = Field(default=None)
-    status: str = Field(default="Created")
+    status: str = Field(default="Создан")
+    dessly_order_id: Optional[str] = Field(default=None)

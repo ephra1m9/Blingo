@@ -78,3 +78,40 @@ async def change_order_status(order_id: int, status: int) -> bool:
             await session.rollback()
             logging.error(f"Ошибка при изменении статуса заказа #{order_id}: {e}")
             return False
+
+
+async def update_order_after_payment(
+    order_id: int,
+    status: int,
+    dessly_order_id: str | None = None,
+) -> bool:
+    """
+    Обновить статус заказа и сохранить dessly_order_id после обработки платежа.
+
+    Args:
+        order_id: ID заказа в нашей БД.
+        status: Числовой код статуса из ORDER_STATUS (1 — Оплачен, 3 — Отменён).
+        dessly_order_id: ID заказа в системе Dessly (если есть).
+
+    Returns:
+        True при успехе, False при ошибке.
+    """
+    async with get_async_session() as session:
+        try:
+            order = await session.get(OrdersHistory, order_id)
+            if not order:
+                logging.warning(f"Заказ #{order_id} не найден при update_order_after_payment")
+                return False
+            order.status = ORDER_STATUS[str(status)]
+            if dessly_order_id is not None:
+                order.dessly_order_id = dessly_order_id
+            await session.commit()
+            logging.info(
+                f"Заказ #{order_id} обновлён: status='{ORDER_STATUS[str(status)]}', "
+                f"dessly_order_id={dessly_order_id}"
+            )
+            return True
+        except Exception as e:
+            await session.rollback()
+            logging.error(f"Ошибка при update_order_after_payment для заказа #{order_id}: {e}")
+            return False

@@ -1,7 +1,4 @@
 import json
-import time
-import hmac
-import hashlib
 import logging
 import aiohttp
 
@@ -10,46 +7,17 @@ from ..config import DESSLY_API_KEY
 
 logger = logging.getLogger(__name__)
 
-DESSLY_ORDERS_URL = "https://desslyhub.com/api/v1/orders"
+DESSLY_TOPUP_URL = "https://desslyhub.com/api/v1/service/steamtopup/topup"
 CBR_RATES_URL = "https://www.cbr-xml-daily.ru/daily_json.js"
 
 # Коды статусов заказа Dessly
 DESSLY_STATUSES = {
     "pending":   "Ожидает обработки",
-    "paid":      "Оплачен",
-    "executing": "Выполняется",
+    "processing": "Обрабатывается",
     "completed": "Выполнен",
     "failed":    "Ошибка выполнения",
     "canceled":  "Отменён",
 }
-
-
-def _make_signature(api_key: str, timestamp: str, body: str) -> str:
-    """
-    Формирует HMAC-SHA256 подпись для Dessly API.
-    Формула: HMAC-SHA256(secret=DESSLY_API_KEY, message=apiKey+timestamp+body)
-    Возвращает lowercase hex.
-    """
-    message = api_key + timestamp + body
-    signature = hmac.new(
-        DESSLY_API_KEY.encode("utf-8"),
-        message.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    return signature
-
-
-def _build_headers(body: str) -> dict:
-    """Формирует заголовки запроса к Dessly API с подписью."""
-    timestamp = str(int(time.time()))
-    signature = _make_signature(DESSLY_API_KEY, timestamp, body)
-    return {
-        "X-Api-Key": DESSLY_API_KEY,
-        "X-Timestamp": timestamp,
-        "X-Signature": signature,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
 
 
 async def get_usd_rate() -> float:
@@ -71,30 +39,32 @@ def rub_to_usd(amount_rub: int | float, usd_rate: float) -> float:
     return round(amount_rub / usd_rate, 2)
 
 
-async def steam_topup(username: str, amount_usd: float) -> dict:
+async def steam_topup(username: str, amount_usd: float, reference: str | None = None) -> dict:
     """
-    Создаёт заказ на пополнение Steam через новый Dessly API.
+    Создаёт заказ на пополнение Steam через Dessly API.
 
     Args:
         username: Логин Steam пользователя.
         amount_usd: Сумма пополнения в USD (от 0.1 до 1000).
+        reference: Опциональный внешний ID заказа.
 
     Returns:
-        dict с ключами: order_id, status, total_amount_cents,
-        final_amount_cents, commission_cents, created_at.
+        dict с полями: transaction_id, status, error_code.
         При ошибке возвращает {"status": "error", "error": "описание"}.
     """
-    service_params = json.dumps({"username": username, "amount": amount_usd})
-
-    payload = {
-        "method": "balance",
-        "payment_params": None,
-        "service_params": service_params,
-        "service_type": "steam_refill",
+    payload: dict = {
+        "username": username,
+        "amount": amount_usd,
     }
+    if reference is not None:
+        payload["reference"] = reference
 
     body = json.dumps(payload, separators=(",", ":"))
-    headers = _build_headers(body)
+    headers = {
+        "apikey": DESSLY_API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
 
     logger.info(
         f"Отправка заказа в Dessly: username={username}, amount_usd={amount_usd}"
@@ -103,19 +73,36 @@ async def steam_topup(username: str, amount_usd: float) -> dict:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                DESSLY_ORDERS_URL,
+                DESSLY_TOPUP_URL,
                 data=body,
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
-                data = await resp.json(content_type=None)
-                logger.info(f"Ответ Dessly (статус HTTP {resp.status}): {data}")
+                raw_text = await resp.text()
+                logger.info(
+                    f"��твет Dessly (HTTP {resp.status}): {raw_text[:500]}"
+                )
+
+                try:
+                    data = json.loads(raw_text)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Dessly верну�� не-JSON ответ: {e} | raw={raw_text[:200]}")
+                    return {"status": "error", "error": f"Некорректный ответ сервера: {raw_text[:100]}"}
 
                 if resp.status != 200:
-                    return {
-                        "status": "error",
-                        "error": data.get("detail") or data.get("message") or f"HTTP {resp.status}",
-                    }
+                    error_msg = (
+                        data.get("detail")
+                        or data.get("message")
+                        or data.get("error")
+                        or f"HTTP {resp.status} (error_code={data.get('error_code', '?')})"
+                    )
+                    return {"status": "error", "error": error_msg}
+
+                # Проверяем error_code в теле ответа
+                error_code = data.get("error_code", 0)
+                if error_code != 0:
+                    logger.error(f"Dessly вернул error_code={error_code}: {data}")
+                    return {"status": "error", "error": f"Dessly error_code={error_code}"}
 
                 return data
 
@@ -128,8 +115,8 @@ async def steam_topup(username: str, amount_usd: float) -> dict:
 
 
 def is_success(result: dict) -> bool:
-    """Проверяет, успешно ли создан заказ."""
-    return result.get("status") in ("pending", "paid", "executing", "completed")
+    """Проверяет, успешно ли создан/обрабатывается заказ."""
+    return result.get("status") in ("pending", "processing", "completed")
 
 
 def get_status_label(status: str) -> str:

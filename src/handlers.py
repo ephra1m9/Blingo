@@ -42,8 +42,7 @@ async def show_main_menu(target: Message, user: User, edit: bool = False):
 
     text = (
         f"Привет <b>{user_name}</b>! 👋\n\n"
-        f"Пополнение стим — 2%\n"
-        f"При оплате по QR — 5%\n\n"
+        f"Пополнение стим — {COMMISSION}%\n\n"
         f"<tg-emoji emoji-id='5463392464314315076'>👉</tg-emoji> Для пополнения баланса Steam нажми кнопку <b>«Пополнить Steam»</b> в меню ниже.\n\n"
         f"<a href='https://telegra.ph/Politika-konfidencialnosti-servisa-Blingo-Buy-05-06'>Политика конфиденциальности</a>\n"
         f"<a href='https://telegra.ph/Polzovatelskoe-soglashenie-servisa-Blingo-Buy-05-06'>Пользовательское соглашение</a>"
@@ -195,7 +194,7 @@ async def process_amount(m: Message, state: FSMContext):
 
     data = await state.get_data()
     login = data["steam_login"]
-    total = round(amount * (1 + COMMISSION))
+    total = round(amount * (1 + COMMISSION / 100))
 
     await state.set_state(SteamPayState.waiting_pay)
 
