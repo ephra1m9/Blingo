@@ -1,8 +1,8 @@
 import logging
 
 from aiogram import Router, Bot, F
-from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery
+from aiogram.filters import CommandStart, Command
+from aiogram.types import Message, CallbackQuery, User
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
@@ -33,23 +33,51 @@ class SteamPayState(StatesGroup):
     waiting_pay = State()
 
 
-# ========== КОМАНДЫ ==========
-@router.message(CommandStart())
-async def cmd_start(m: Message):
-    user_id = m.from_user.id
-    user_name = m.from_user.full_name
+# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+async def show_main_menu(target: Message, user: User, edit: bool = False):
+    user_id = user.id
+    user_name = user.full_name
 
-    user, is_now = await get_or_create_user(user_id, user_name)
+    db_user, is_now = await get_or_create_user(user_id, user_name)
 
-    await m.answer(
+    text = (
         f"Привет <b>{user_name}</b>! 👋\n\n"
         f"Пополнение стим — 2%\n"
         f"При оплате по QR — 5%\n\n"
         f"<tg-emoji emoji-id='5463392464314315076'>👉</tg-emoji> Для пополнения баланса Steam нажми кнопку <b>«Пополнить Steam»</b> в меню ниже.\n\n"
         f"<a href='https://telegra.ph/Politika-konfidencialnosti-servisa-Blingo-Buy-05-06'>Политика конфиденциальности</a>\n"
-        f"<a href='https://telegra.ph/Polzovatelskoe-soglashenie-servisa-Blingo-Buy-05-06'>Пользовательское соглашение</a>",
+        f"<a href='https://telegra.ph/Polzovatelskoe-soglashenie-servisa-Blingo-Buy-05-06'>Пользовательское соглашение</a>"
+    )
+
+    if edit:
+        await target.edit_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=kb.main_menu,
+            disable_web_page_preview=True
+        )
+    else:
+        await target.answer(
+            text,
+            parse_mode="HTML",
+            reply_markup=kb.main_menu,
+            disable_web_page_preview=True
+        )
+
+
+# ========== КОМАНДЫ ==========
+@router.message(CommandStart())
+async def cmd_start(m: Message):
+    await show_main_menu(m, m.from_user, edit=False)
+
+
+@router.message(Command("feedback"))
+async def cmd_feedback(m: Message):
+    await m.answer(
+        "<b>Связь с нами</b>\n\n"
+        "Email: nikitasrilanka@gmail.com\n"
+        "Tg: @jedi_nick",
         parse_mode="HTML",
-        reply_markup=kb.main_menu,
         disable_web_page_preview=True
     )
 
@@ -59,12 +87,13 @@ async def cmd_start(m: Message):
 async def steam_pay(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SteamPayState.waiting_login)
 
-    await callback.message.answer(
+    await callback.message.edit_text(
         "<b>Пополнение баланса Steam</b>\n\n"
         "Введите ваш логин Steam:\n\n"
         "<i><b>⚠️ Будьте внимательны!</b>\n"
         "Если вы введёте неправильный логин, средства зачислятся на аккаунт другого пользователя.</i>",
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=kb.back_to_menu
     )
     
     await callback.answer()
@@ -90,10 +119,16 @@ async def cancel_payment(callback: CallbackQuery, state: FSMContext):
         "❌ <b>Платёж отменён.</b>\n\n"
         "Вы можете создать новый заказ в главном меню.",
         parse_mode="HTML",
-        reply_markup=kb.main_menu,
+        reply_markup=kb.back_to_menu,
     )
     await callback.answer()
 
+
+@router.callback_query(F.data == "back_to_menu")
+async def back_to_menu(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await show_main_menu(callback.message, callback.from_user, edit=True)
+    await callback.answer()
 
 
 # ========== FSM: ВВОД ЛОГИНА ==========
@@ -108,6 +143,7 @@ async def process_login(m: Message, state: FSMContext):
             "длина от 2 до 32 символов.\n\n"
             "Попробуйте ещё раз:",
             parse_mode="HTML",
+            reply_markup=kb.back_to_menu
         )
         return
 
@@ -119,6 +155,7 @@ async def process_login(m: Message, state: FSMContext):
         f"Введите сумму пополнения в рублях:\n"
         f"<i>Минимум — {MIN_AMOUNT} руб., максимум — {MAX_AMOUNT:,} руб.</i>".replace(",", " "),
         parse_mode="HTML",
+        reply_markup=kb.back_to_menu
     )
 
 
@@ -132,6 +169,7 @@ async def process_amount(m: Message, state: FSMContext):
             "❌ Сумма должна быть целым числом.\n\n"
             "Попробуйте ещё раз:",
             parse_mode="HTML",
+            reply_markup=kb.back_to_menu
         )
         return
 
@@ -142,6 +180,7 @@ async def process_amount(m: Message, state: FSMContext):
             f"❌ Минимальная сумма пополнения — <b>{MIN_AMOUNT} руб.</b>\n\n"
             f"Попробуйте ещё раз:",
             parse_mode="HTML",
+            reply_markup=kb.back_to_menu
         )
         return
 
@@ -150,6 +189,7 @@ async def process_amount(m: Message, state: FSMContext):
             f"❌ Максимальная сумма пополнения — <b>{MAX_AMOUNT:,} руб.</b>\n\n".replace(",", " ") +
             "Попробуйте ещё раз:",
             parse_mode="HTML",
+            reply_markup=kb.back_to_menu
         )
         return
 

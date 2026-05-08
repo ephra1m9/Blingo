@@ -1,3 +1,4 @@
+import os
 import hashlib
 import logging
 
@@ -6,10 +7,11 @@ from aiogram import Bot
 
 from .dessly.steam_transactions import get_usd_rate, rub_to_usd, steam_topup, is_success, get_status_label
 from .db.db_helper import get_order
-from .config import FREEKASSA_SECRET2, FREEKASSA_SHOP_ID
 
 
 logger = logging.getLogger(__name__)
+
+FREEKASSA_SECRET2 = os.getenv("FREEKASSA_SECRET2")
 
 
 def create_webhook_app(bot: Bot) -> web.Application:

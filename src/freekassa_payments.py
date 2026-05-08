@@ -1,12 +1,15 @@
+import os
 import hashlib
 import logging
 
-from .config import FREEKASSA_SHOP_ID, FREEKASSA_SECRET1, COMMISSION
+from .config import COMMISSION
 from .db.db_helper import create_order
 
 
 logger = logging.getLogger(__name__)
 
+FREEKASSA_SHOP_ID = os.getenv("FREEKASSA_SHOP_ID")
+FREEKASSA_SECRET1 = os.getenv("FREEKASSA_SECRET1")
 FREEKASSA_PAY_URL = "https://pay.fk.money/"
 
 
