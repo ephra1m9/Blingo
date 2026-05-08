@@ -8,8 +8,6 @@ from .db.db_helper import create_order
 
 logger = logging.getLogger(__name__)
 
-FREEKASSA_SHOP_ID = os.getenv("FREEKASSA_SHOP_ID")
-FREEKASSA_SECRET1 = os.getenv("FREEKASSA_SECRET1")
 FREEKASSA_PAY_URL = "https://pay.fk.money/"
 
 
@@ -35,6 +33,11 @@ async def create_payment_url(amount_rub: int, steam_login: str, user_id: int) ->
     Returns:
         Кортеж (payment_url, order_id).
     """
+    shop_id = os.getenv("FREEKASSA_SHOP_ID")
+    secret1 = os.getenv("FREEKASSA_SECRET1")
+    if not shop_id or not secret1:
+        raise ValueError("FREEKASSA_SHOP_ID или FREEKASSA_SECRET1 не заданы в переменных окружения")
+
     total_rub = round(amount_rub * (1 + COMMISSION))
 
     # Сохраняем заказ в БД, получаем числовой ID
@@ -44,20 +47,20 @@ async def create_payment_url(amount_rub: int, steam_login: str, user_id: int) ->
         amount=amount_rub,
     )
 
-    amount_str = str(total_rub)
+    amount_str = f"{total_rub:.2f}"
     currency = "RUB"
     order_id_str = str(order_id)
 
     sign = _make_sign(
-        shop_id=FREEKASSA_SHOP_ID,
+        shop_id=shop_id,
         amount=amount_str,
-        secret=FREEKASSA_SECRET1,
+        secret=secret1,
         currency=currency,
         order_id=order_id_str,
     )
 
     params = (
-        f"?m={FREEKASSA_SHOP_ID}"
+        f"?m={shop_id}"
         f"&oa={amount_str}"
         f"&currency=RUB"
         f"&o={order_id_str}"
