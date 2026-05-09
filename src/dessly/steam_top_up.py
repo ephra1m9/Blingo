@@ -8,16 +8,8 @@ from ..config import DESSLY_API_KEY
 logger = logging.getLogger(__name__)
 
 DESSLY_TOPUP_URL = "https://desslyhub.com/api/v1/service/steamtopup/topup"
+DESSLY_CHECK_LOGIN_URL = "https://desslyhub.com/api/v1/service/steamtopup/check_login"
 CBR_RATES_URL = "https://www.cbr-xml-daily.ru/daily_json.js"
-
-# Коды статусов заказа Dessly
-DESSLY_STATUSES = {
-    "pending":   "Ожидает обработки",
-    "processing": "Обрабатывается",
-    "completed": "Выполнен",
-    "failed":    "Ошибка выполнения",
-    "canceled":  "Отменён",
-}
 
 
 async def get_usd_rate() -> float:
@@ -80,13 +72,13 @@ async def steam_topup(username: str, amount_usd: float, reference: str | None = 
             ) as resp:
                 raw_text = await resp.text()
                 logger.info(
-                    f"��твет Dessly (HTTP {resp.status}): {raw_text[:500]}"
+                    f"Ответ Dessly (HTTP {resp.status}): {raw_text[:500]}"
                 )
 
                 try:
                     data = json.loads(raw_text)
                 except json.JSONDecodeError as e:
-                    logger.error(f"Dessly верну�� не-JSON ответ: {e} | raw={raw_text[:200]}")
+                    logger.error(f"Dessly вернул не JSON ответ: {e} | raw={raw_text[:200]}")
                     return {"status": "error", "error": f"Некорректный ответ сервера: {raw_text[:100]}"}
 
                 if resp.status != 200:
@@ -119,6 +111,57 @@ def is_success(result: dict) -> bool:
     return result.get("status") in ("pending", "processing", "completed")
 
 
-def get_status_label(status: str) -> str:
-    """Возвращает читаемое название статуса заказа."""
-    return DESSLY_STATUSES.get(status, f"Статус: {status}")
+async def check_steam_login(username: str, amount: float = 1.0) -> dict:
+    """
+    Проверяет возможность пополнения Steam-аккаунта по логину через Dessly API.
+
+    Args:
+        username: Логин Steam пользователя.
+        amount: Сумма в USD для проверки (по умолчанию 1.0).
+
+    Returns:
+        {"can_refill": True}  — аккаунт найден и доступен для пополнения.
+        {"can_refill": False} — аккаунт не найден или недоступен.
+        {"error": True}       — сетевая ошибка или API недоступен.
+    """
+    payload = {"username": username, "amount": amount}
+    body = json.dumps(payload, separators=(",", ":"))
+    headers = {
+        "apikey": DESSLY_API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    logger.info(f"Проверка Steam логина через Dessly: username={username}, amount={amount}")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                DESSLY_CHECK_LOGIN_URL,
+                data=body,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                raw_text = await resp.text()
+                logger.info(f"Ответ check_login (HTTP {resp.status}): {raw_text[:500]}")
+
+                try:
+                    data = json.loads(raw_text)
+                except json.JSONDecodeError as e:
+                    logger.error(f"check_login: не JSON ответ: {e} | raw={raw_text[:200]}")
+                    return {"error": True}
+
+                error_code = data.get("error_code", 0)
+                if error_code != 0:
+                    logger.warning(f"check_login: error_code={error_code} для username={username}")
+                    return {"can_refill": False}
+
+                can_refill = str(data.get("can_refill", "false")).lower() == "true"
+                return {"can_refill": can_refill}
+
+    except aiohttp.ClientError as e:
+        logger.error(f"Сетевая ошибка check_login для username={username}: {e}")
+        return {"error": True}
+    except Exception as e:
+        logger.error(f"Неожиданная ошибка check_login для username={username}: {e}")
+        return {"error": True}

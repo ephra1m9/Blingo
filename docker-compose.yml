@@ -9,6 +9,8 @@ services:
     networks:
       - web-net
       - mysql_net
+    environment:
+      - TZ=Europe/Moscow
     restart: unless-stopped
 
 networks:

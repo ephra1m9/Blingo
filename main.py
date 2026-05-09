@@ -9,6 +9,7 @@ from src.handlers import router
 from src.db.db_connect import close_db
 from src.webhook import create_webhook_app
 from src.config import WEBHOOK_PORT
+from src.throttling import ThrottlingMiddleware
 
 import os
 
@@ -29,6 +30,11 @@ async def on_shutdown():
 async def main():
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
+
+    # Rate Limiting: не более 5 сообщений/нажатий за 10 секунд на пользователя
+    dp.message.middleware(ThrottlingMiddleware(max_calls=5, window_seconds=10.0))
+    dp.callback_query.middleware(ThrottlingMiddleware(max_calls=5, window_seconds=10.0))
+
     dp.include_router(router)
     dp.shutdown.register(on_shutdown)
 

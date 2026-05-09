@@ -4,7 +4,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 main_menu = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="💵 Пополнить Steam", callback_data="steam_pay")]
+        [InlineKeyboardButton(text="💵 Пополнить Steam", callback_data="steam_pay", style="primary")],
+        [InlineKeyboardButton(text="📖 История пополнений", callback_data="my_orders_history")]
     ]
 )
 

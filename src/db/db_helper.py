@@ -29,6 +29,26 @@ async def get_or_create_user(user_id: int, user_name: str | None = None) -> tupl
         return user, False
     
 
+async def get_user_orders(user_id: int) -> list[OrdersHistory]:
+    """Получить историю пополнений пользователя"""
+    async with get_async_session() as session:
+        try:
+            result = await session.execute(
+                select(OrdersHistory)
+                .where(OrdersHistory.user_id == user_id)
+                .order_by(OrdersHistory.created_at.desc())
+                .limit(5)
+            )
+
+            orders = result.scalars().all()
+
+            return list(orders)
+        
+        except Exception as e:
+            logging.error(f"Ошибка при получении истории заказов: {e}")
+            return []
+
+
 async def create_order(user_id: int, steam_login: str, amount: int) -> int | None:
     """Создать новый заказ, вернуть order_id из БД"""
     async with get_async_session() as session:

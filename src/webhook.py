@@ -5,13 +5,20 @@ import logging
 from aiohttp import web
 from aiogram import Bot
 
-from .dessly.steam_transactions import get_usd_rate, rub_to_usd, steam_topup, is_success, get_status_label
+from .dessly.steam_top_up import get_usd_rate, rub_to_usd, steam_topup, is_success
+from .dessly.get_transaction_status import get_status_label
 from .db.db_helper import get_order, update_order_after_payment
+from .config import COMMISSION
+from .webhook_throttling import WebhookThrottlingMiddleware
 
 
 logger = logging.getLogger(__name__)
 
 FREEKASSA_SECRET2 = os.getenv("FREEKASSA_SECRET2")
+
+# Экземпляр throttling-middleware для вебхука:
+# не более 10 запросов с одного IP за 60 секунд
+_webhook_throttler = WebhookThrottlingMiddleware(max_calls=10, window_seconds=60.0)
 
 
 def create_webhook_app(bot: Bot) -> web.Application:
@@ -22,9 +29,9 @@ def create_webhook_app(bot: Bot) -> web.Application:
         bot: Экземпляр aiogram Bot для отправки уведомлений пользователям.
 
     Returns:
-        Настроенное aiohttp web.Application.
+        Настроенное aiohttp web.Application с Rate Limiting middleware.
     """
-    app = web.Application()
+    app = web.Application(middlewares=[_webhook_throttler.middleware])
     app["bot"] = bot
     app.router.add_post("/webhook/freekassa", handle_freekassa_ipn)
     return app
@@ -96,12 +103,43 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
         logger.error(f"Заказ не найден в БД: order_id={order_id}")
         return web.Response(status=200, text="YES")
 
+    # --- Защита от Race Condition (дублирующих IPN) ---
+    # FreeKassa может повторно отправить IPN при таймауте.
+    # Обрабатываем заказ только если он ещё в статусе "Создан".
+    if order.status != "Создан":
+        logger.warning(
+            f"IPN дубликат или повтор: order_id={order_id} уже в статусе '{order.status}'. "
+            f"Пропускаем вызов Dessly."
+        )
+        return web.Response(status=200, text="YES")
+
     steam_login = order.steam_login
     user_id = order.user_id
     amount_rub = order.amount
 
+    # --- Сверка суммы из IPN с ожидаемой суммой из БД ---
+    # Ожидаемая сумма к оплате = сумма пополнения + комиссия
+    expected_amount = round(amount_rub * (1 + COMMISSION / 100), 2)
+    try:
+        ipn_amount = round(float(amount), 2)
+    except (ValueError, TypeError):
+        logger.error(f"Некорректный формат суммы в IPN: amount='{amount}', order_id={order_id}")
+        return web.Response(status=200, text="YES")
+
+    if abs(ipn_amount - expected_amount) > 0.01:
+        logger.error(
+            f"Несоответствие суммы IPN: получено {ipn_amount}, "
+            f"ожидалось {expected_amount} (order_id={order_id}, amount_rub={amount_rub})"
+        )
+        # Не отменяем заказ — возможно, ошибка округления на стороне FreeKassa.
+        # Логируем для ручной проверки, но продолжаем обработку.
+        # Если хотите жёсткую блокировку — раскомментируйте строки ниже:
+        # await _notify_error(bot, user_id, "Ошибка проверки суммы платежа. Обратитесь в поддержку.")
+        # return web.Response(status=200, text="YES")
+
     logger.info(
-        f"Обработка оплаты: user_id={user_id}, steam={steam_login}, amount_rub={amount_rub}"
+        f"Обработка оплаты: user_id={user_id}, steam_login=***{steam_login[-3:]}, "
+        f"amount_rub={amount_rub}, ipn_amount={ipn_amount}"
     )
 
     # Уведомляем пользователя о начале обработки
@@ -132,7 +170,6 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
     )
 
     status = result.get("status", "error")
-    # Dessly возвращает transaction_id (UUID)
     transaction_id = result.get("transaction_id")
 
     if is_success(result):
@@ -147,7 +184,7 @@ async def handle_freekassa_ipn(request: web.Request) -> web.Response:
         try:
             await bot.send_message(
                 user_id,
-                f"✅ <b>Пополнение Steam отправлено!</b>\n\n"
+                f"✅ <b>Заявка на пополнение отправлена!</b>\n\n"
                 f"🎮 Логин: <code>{steam_login}</code>\n"
                 f"💰 Сумма: <b>{amount_rub} руб.</b> (~{amount_usd} USD)\n"
                 f"🔖 ID транзакции: <code>{transaction_id or '—'}</code>\n"
