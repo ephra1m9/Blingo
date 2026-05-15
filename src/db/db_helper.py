@@ -49,7 +49,7 @@ async def get_user_orders(user_id: int) -> list[OrdersHistory]:
             return []
 
 
-async def create_order(order_id: str, user_id: int, steam_login: str, amount: int, method: str = "sbp") -> str | None:
+async def create_order(order_id: str, user_id: int, steam_login: str, amount: int, pay_amount: float, method: str = "sbp") -> str | None:
     """Создать новый заказ с переданным order_id, вернуть order_id при успехе"""
     async with get_async_session() as session:
         try:
@@ -58,6 +58,7 @@ async def create_order(order_id: str, user_id: int, steam_login: str, amount: in
                 user_id=user_id,
                 steam_login=steam_login,
                 amount=amount,
+                pay_amount=pay_amount,
                 method=method,
             )
 

@@ -155,7 +155,11 @@ async def create_payment_url(
     if not PAYFORGAME_API_KEY or not PAYFORGAME_SECRET:
         raise ValueError("PAYFORGAME_API_KEY или PAYFORGAME_SECRET не заданы в переменных окружения")
 
-    # 1. Генерируем order_id и создаём заказ в БД (с retry на случай коллизии)
+    # 1. Расчёт итоговой суммы с учётом комиссии
+    effective_commission = commission if commission is not None else COMMISSION
+    amount_total = round(amount_rub * (1 + effective_commission / 100), 2)
+
+    # 2. Генерируем order_id и создаём заказ в БД
     for attempt in range(1, MAX_ORDER_ID_RETRIES + 1):
         order_id = _generate_order_id()
         db_order_id = await create_order(
@@ -163,6 +167,7 @@ async def create_payment_url(
             user_id=user_id,
             steam_login=steam_login,
             amount=amount_rub,
+            pay_amount=amount_total,
             method=method,
         )
         if db_order_id is not None:
@@ -176,17 +181,15 @@ async def create_payment_url(
             f"Не удалось создать заказ в БД после {MAX_ORDER_ID_RETRIES} попыток"
         )
 
-    # 2. Формируем параметры платежа (invoice_id совпадает с order_id)
+    # 3. Формируем параметры платежа (invoice_id совпадает с order_id)
     invoice_id = order_id
     email = f"user_{user_id}@kazna.shop"
-    effective_commission = commission if commission is not None else COMMISSION
-    amount_total = round(amount_rub * (1 + effective_commission / 100), 2)
     amount_str = f"{amount_total:.2f}"
 
-    # 3. Формируем подпись
+    # 4. Формируем подпись
     signature = _make_signature(invoice_id, amount_str, email, PAYFORGAME_SECRET)
 
-    # 4. Формируем параметры запроса
+    # 5. Формируем параметры запроса
     params = {
         "method": method,
         "invoice_id": invoice_id,
@@ -210,7 +213,7 @@ async def create_payment_url(
         f"user_id={user_id}, steam={steam_login}, amount_total={amount_total}"
     )
 
-    # 5. Отправляем запрос в Pay4Game
+    # 6. Отправляем запрос в Pay4Game
     async with aiohttp.ClientSession() as session:
         async with session.post(
             PAY4GAME_CREATE_URL,
@@ -236,11 +239,11 @@ async def create_payment_url(
     payment_uuid: str = data.get("uuid", "")
     agent_transaction_id: str = data.get("agent_transaction_id", "")
 
-    # 6. Сохраняем agent_transaction_id в БД
+    # 7. Сохраняем agent_transaction_id в БД
     if agent_transaction_id:
         await update_order_agent_transaction_id(order_id, agent_transaction_id)
 
-    # 7. Регистрируем платёж на сайте (не блокирует при ошибке)
+    # 8. Регистрируем платёж на сайте (не блокирует при ошибке)
     await _register_on_site(
         invoice_id=invoice_id,
         agent_transaction_id=agent_transaction_id,

@@ -1,5 +1,4 @@
 import asyncio
-import random
 import logging
 
 from aiogram import Router, Bot, F
@@ -17,6 +16,9 @@ from .config import (
     COMMISSION,
     ORDER_STATUS,
     CHANNEL_ID,
+)
+from .bot_helper import (
+    get_welcome_phrase
 )
 from .db.db_helper import (
     get_or_create_user,
@@ -78,20 +80,15 @@ async def show_main_menu(target: Message, user: User, edit: bool = False):
 
     db_user, is_now = await get_or_create_user(user_id, user_name)
 
-    welcome_phrase = [
-        "Привет",
-        "С возвращением",
-        "Рад тебя видеть,",
-        "И снова привет",
-    ]
-
-    welcome_text = random.choice(welcome_phrase)
+    welcome_text = get_welcome_phrase(user_name)
 
     text = (
-        f"{welcome_text} <b>{user_name}</b>! 👋\n\n"
+        welcome_text +
+        f"\n\n" +
         f"<tg-emoji emoji-id='5188481279963715781'>🚀</tg-emoji> Пополнение Steam с минимальной комиссией — всего {COMMISSION}%!\n\n"
         f"<tg-emoji emoji-id='5319302290127991242'>💎</tg-emoji> Получи промокод на скидку в нашем канале <a href='https://t.me/BlingoCom'>BlingoCom</a>\n\n"
-        f"<tg-emoji emoji-id='5460755126761312667'>🚩</tg-emoji> Доступные регионы для пополнения: <code>России, Азербайджан, Армения, Беларусь, Казахстан, Кыргызстан, Молдова, Таджикистан, Туркменистан, Узбекистан, Украина</code>\n\n"
+        f"<tg-emoji emoji-id='5460755126761312667'>🚩</tg-emoji> <b>Доступные регионы для пополнения:</b>\n"
+        f"России, Азербайджан, Армения, Беларусь, Казахстан, Кыргызстан, Молдова, Таджикистан, Туркменистан, Узбекистан, Украина\n\n"
         f"<a href='https://telegra.ph/Politika-konfidencialnosti-servisa-Blingo-Buy-05-06'>Политика конфиденциальности</a>\n"
         f"<a href='https://telegra.ph/Polzovatelskoe-soglashenie-servisa-Blingo-Buy-05-06'>Пользовательское соглашение</a>"
     )

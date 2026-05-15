@@ -23,6 +23,7 @@ class OrdersHistory(SQLModel, table=True):
     user_id: int = Field(sa_column=Column(BigInteger()))
     steam_login: str = Field(default=None)
     amount: int = Field(default=None)
+    pay_amount: float = Field(default=None)
     status: str = Field(default="Создан")
     agent_transaction_id: Optional[str] = Field(default=None)
     steam_status: Optional[str] = Field(default=None)
