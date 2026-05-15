@@ -83,7 +83,7 @@ async def show_main_menu(target: Message, user: User, edit: bool = False):
     welcome_text = get_welcome_phrase(user_name)
 
     text = (
-        welcome_text +
+        welcome_text + f" <tg-emoji emoji-id='5199885118214255386'>👋</tg-emoji>" +
         f"\n\n" +
         f"<tg-emoji emoji-id='5188481279963715781'>🚀</tg-emoji> Пополнение Steam с минимальной комиссией — всего {COMMISSION}%!\n\n"
         f"<tg-emoji emoji-id='5319302290127991242'>💎</tg-emoji> Получи промокод на скидку в нашем канале <a href='https://t.me/BlingoCom'>BlingoCom</a>\n\n"
