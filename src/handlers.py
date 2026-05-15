@@ -1,4 +1,5 @@
 import asyncio
+import random
 import logging
 
 from aiogram import Router, Bot, F
@@ -15,6 +16,7 @@ from .config import (
     MAX_AMOUNT,
     COMMISSION,
     ORDER_STATUS,
+    CHANNEL_ID,
 )
 from .db.db_helper import (
     get_or_create_user,
@@ -24,8 +26,7 @@ from .db.db_helper import (
     save_payment_message_id,
     get_payment_message_id,
 )
-from .pay4game_payments import create_payment_url
-from .pay4game_check import check_steam_login
+from .pay4game_payments import create_payment_url, validate_promo
 from .pay4game_poller import wait_for_payment_and_notify
 
 
@@ -61,16 +62,36 @@ async def safe_delete_message(bot: Bot, chat_id: int, message_id: int) -> None:
         logger.debug(f"Не удалось удалить сообщение {message_id} в чате {chat_id}: {e}")
 
 
+async def is_user_subscribed(bot: Bot, user_id: int) -> bool:
+    """Проверяет, подписан ли пользователь на канал."""
+    try:
+        member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        return member.status in ("member", "administrator", "creator")
+    except Exception as e:
+        logger.warning(f"Ошибка проверки подписки user_id={user_id}: {e}")
+        return False
+
+
 async def show_main_menu(target: Message, user: User, edit: bool = False):
     user_id = user.id
     user_name = user.full_name
 
     db_user, is_now = await get_or_create_user(user_id, user_name)
 
+    welcome_phrase = [
+        "Привет",
+        "С возвращением",
+        "Рад тебя видеть,",
+        "И снова привет",
+    ]
+
+    welcome_text = random.choice(welcome_phrase)
+
     text = (
-        f"Привет <b>{user_name}</b>! 👋\n\n"
-        f"Пополнение стим — {COMMISSION}%\n\n"
-        f"<tg-emoji emoji-id='5463392464314315076'>👉</tg-emoji> Для пополнения баланса Steam нажми кнопку <b>«Пополнить Steam»</b> в меню ниже.\n\n"
+        f"{welcome_text} <b>{user_name}</b>! 👋\n\n"
+        f"<tg-emoji emoji-id='5188481279963715781'>🚀</tg-emoji> Пополнение Steam с минимальной комиссией — всего {COMMISSION}%!\n\n"
+        f"<tg-emoji emoji-id='5319302290127991242'>💎</tg-emoji> Получи промокод на скидку в нашем канале <a href='https://t.me/BlingoCom'>BlingoCom</a>\n\n"
+        f"<tg-emoji emoji-id='5460755126761312667'>🚩</tg-emoji> Доступные регионы для пополнения: <code>России, Азербайджан, Армения, Беларусь, Казахстан, Кыргызстан, Молдова, Таджикистан, Туркменистан, Узбекистан, Украина</code>\n\n"
         f"<a href='https://telegra.ph/Politika-konfidencialnosti-servisa-Blingo-Buy-05-06'>Политика конфиденциальности</a>\n"
         f"<a href='https://telegra.ph/Polzovatelskoe-soglashenie-servisa-Blingo-Buy-05-06'>Пользовательское соглашение</a>"
     )
@@ -102,7 +123,7 @@ async def cmd_feedback(m: Message):
     await m.answer(
         "<b>Связь с нами</b>\n\n"
         "Email: nikitasrilanka@gmail.com\n"
-        "Tg: @jedi_nick",
+        "Tg: @MiamiBuyer",
         parse_mode="HTML",
         disable_web_page_preview=True
     )
@@ -111,6 +132,19 @@ async def cmd_feedback(m: Message):
 # ========== ОБРАБОТЧИКИ КНОПОК ==========
 @router.callback_query(F.data == "steam_pay")
 async def steam_pay(callback: CallbackQuery, state: FSMContext):
+    # Проверка подписки на канал
+    if not await is_user_subscribed(callback.bot, callback.from_user.id):
+        await callback.answer(
+            "⚠️ Чтобы пополнить Steam, подпишитесь на наш канал.",
+            show_alert=True,
+        )
+        await callback.message.answer(
+            "🔔 <b>Подпишитесь на канал, чтобы продолжить:</b>",
+            parse_mode="HTML",
+            reply_markup=kb.channel_subscribe_kb,
+        )
+        return
+
     await state.set_state(SteamPayState.waiting_login)
 
     # Удаляем главное меню
@@ -246,51 +280,15 @@ async def process_login(m: Message, state: FSMContext):
     if prev_bot_msg_id:
         await safe_delete_message(m.bot, m.chat.id, prev_bot_msg_id)
 
-    # Показываем сообщение о проверке пока идёт запрос к API
-    checking_msg = await m.answer(
-        "⏳ <b>Проверяем логин Steam...</b>",
-        parse_mode="HTML",
-    )
-
-    result = await check_steam_login(login)
-
-    if result.get("error"):
-        # Сетевая ошибка — предупреждаем и пропускаем дальше
-        logger.warning(f"check_steam_login недоступен для username={login}, пропускаем проверку")
-        await checking_msg.edit_text(
-            f"⚠️ <b>Не удалось проверить логин</b> (сервис временно недоступен).\n\n"
-            f"Логин: <code>{login}</code>\n\n"
-            f"Введите сумму пополнения в рублях:\n"
-            f"<i>Минимум — {MIN_AMOUNT} руб., максимум — {MAX_AMOUNT:,} руб.</i>".replace(",", " "),
-            parse_mode="HTML",
-            reply_markup=kb.back_to_menu
-        )
-        await state.update_data(steam_login=login, bot_message_id=checking_msg.message_id)
-        await state.set_state(SteamPayState.waiting_amount)
-        return
-
-    if not result.get("can_refill"):
-        # Аккаунт не найден или недоступен
-        await checking_msg.edit_text(
-            "❌ <b>Аккаунт Steam не найден.</b>\n\n"
-            "Убедитесь, что вы вводите <b>логин</b> (не никнейм и не email), "
-            "и что аккаунт существует.\n\n"
-            "Попробуйте ещё раз:",
-            parse_mode="HTML",
-            reply_markup=kb.back_to_menu
-        )
-        await state.update_data(bot_message_id=checking_msg.message_id)
-        return
-
-    # Логин подтверждён
-    await checking_msg.edit_text(
+    # Логин принят — сразу запрашиваем сумму
+    msg = await m.answer(
         f"✅ Логин: <code>{login}</code>\n\n"
         f"Введите сумму пополнения в рублях:\n"
         f"<i>Минимум — {MIN_AMOUNT} руб., максимум — {MAX_AMOUNT:,} руб.</i>".replace(",", " "),
         parse_mode="HTML",
         reply_markup=kb.back_to_menu
     )
-    await state.update_data(steam_login=login, bot_message_id=checking_msg.message_id)
+    await state.update_data(steam_login=login, bot_message_id=msg.message_id)
     await state.set_state(SteamPayState.waiting_amount)
 
 
@@ -365,7 +363,8 @@ async def _proceed_to_payment(
     login = data["steam_login"]
     amount = data["amount"]
     promo = data.get("promo")
-    total = round(amount * (1 + COMMISSION / 100))
+    promo_commission = data.get("promo_commission", COMMISSION)
+    total = round(amount * (1 + promo_commission / 100), 2)
 
     # Удаляем предыдущее сообщение бота (выбор метода оплаты)
     prev_bot_msg_id = data.get("bot_message_id")
@@ -375,11 +374,13 @@ async def _proceed_to_payment(
     await state.set_state(SteamPayState.waiting_pay)
 
     try:
-        payment_url, order_id = await create_payment_url(
+        payment_url, order_id, agent_transaction_id = await create_payment_url(
             amount_rub=amount,
             steam_login=login,
             user_id=user_id,
             method=method,
+            commission=promo_commission,
+            promo=promo,
         )
     except Exception as e:
         logger.error(f"Ошибка создания платежа Pay4Game: {e}")
@@ -394,16 +395,27 @@ async def _proceed_to_payment(
 
     logger.info(
         f"Создан заказ Pay4Game: order_id={order_id}, "
-        f"user_id={user_id}, steam={login}, amount={amount}, promo={promo!r}"
+        f"user_id={user_id}, steam={login}, amount={amount}, "
+        f"commission={promo_commission}%, promo={promo!r}, "
+        f"agent_transaction_id={agent_transaction_id}"
     )
 
     await state.update_data(order_id=order_id)
+
+    # Формируем текст с учётом промокода
+    promo_line = ""
+    if promo and promo_commission != COMMISSION:
+        if promo_commission == 0:
+            promo_line = "🎟️ Промокод применён! Комиссия 0%.\n"
+        else:
+            promo_line = f"🎟️ Промокод применён! Комиссия {promo_commission}%.\n"
 
     payment_msg = await message.answer(
         f"✅ <b>Заявка на пополнение:</b>\n\n"
         f"🎮 Логин Steam: <code>{login}</code>\n"
         f"💰 Сумма пополнения: <b>{amount} руб.</b>\n"
-        f"💳 К оплате: <b>{total} руб.</b>\n\n"
+        f"💳 К оплате: <b>{total:.2f} руб.</b>\n"
+        f"{promo_line}\n"
         f"Нажми кнопку ниже для оплаты.\n"
         f"После успешной оплаты баланс Steam пополнится автоматически.",
         parse_mode="HTML",
@@ -414,13 +426,12 @@ async def _proceed_to_payment(
     await save_payment_message_id(order_id, payment_msg.message_id)
 
     # Запускаем фоновый поллинг статуса платежа
-    order_record = await get_order(order_id)
-    if order_record and order_record.agent_transaction_id:
+    if agent_transaction_id:
         asyncio.create_task(
             wait_for_payment_and_notify(
                 bot=message.bot,
                 user_id=user_id,
-                agent_transaction_id=order_record.agent_transaction_id,
+                agent_transaction_id=agent_transaction_id,
                 order_id=order_id,
             )
         )
@@ -442,16 +453,60 @@ async def process_promo(m: Message, state: FSMContext):
     if prev_bot_msg_id:
         await safe_delete_message(m.bot, m.chat.id, prev_bot_msg_id)
 
-    await state.update_data(promo=promo if promo else None)
-    await state.set_state(SteamPayState.waiting_method)
-
-    msg = await m.answer(
-        "<b>💳 Выберите способ оплаты:</b>",
+    # Показываем сообщение о проверке
+    checking_msg = await m.answer(
+        "⏳ <b>Проверяем промокод...</b>",
         parse_mode="HTML",
-        reply_markup=kb.payment_method_keyboard(),
     )
 
-    await state.update_data(bot_message_id=msg.message_id)
+    result = await validate_promo(promo)
+
+    # Удаляем сообщение о проверке
+    await safe_delete_message(m.bot, m.chat.id, checking_msg.message_id)
+
+    if result.get("success"):
+        # Промокод применён
+        promo_commission = result["commission"]
+        await state.update_data(promo=promo, promo_commission=promo_commission)
+
+        if promo_commission == 0:
+            success_text = "🎟️ <b>Промокод применён!</b> Комиссия 0% — оплата без комиссии."
+        else:
+            success_text = f"🎟️ <b>Промокод применён!</b> Комиссия снижена до {promo_commission}%."
+
+        await state.set_state(SteamPayState.waiting_method)
+        msg = await m.answer(
+            f"{success_text}\n\n<b>💳 Выберите способ оплаты:</b>",
+            parse_mode="HTML",
+            reply_markup=kb.payment_method_keyboard(),
+        )
+        await state.update_data(bot_message_id=msg.message_id)
+
+    elif result.get("error") == "Сервис проверки промокодов недоступен":
+        # Сервис недоступен — пропускаем со стандартной комиссией
+        logger.warning("Сервис проверки промокодов недоступен, пропускаем")
+        await state.update_data(promo=promo)
+        await state.set_state(SteamPayState.waiting_method)
+        msg = await m.answer(
+            "⚠️ <b>Не удалось проверить промокод</b> (сервис временно недоступен).\n"
+            "Продолжаем со стандартной комиссией.\n\n"
+            "<b>💳 Выберите способ оплаты:</b>",
+            parse_mode="HTML",
+            reply_markup=kb.payment_method_keyboard(),
+        )
+        await state.update_data(bot_message_id=msg.message_id)
+
+    else:
+        # Промокод не принят — даём ввести заново или пропустить
+        error_text = result.get("error", "Неизвестная ошибка")
+        await state.set_state(SteamPayState.waiting_promo)
+        msg = await m.answer(
+            f"❌ <b>{error_text}</b>\n\n"
+            "Введите другой промокод или нажмите <b>«Пропустить»</b>:",
+            parse_mode="HTML",
+            reply_markup=kb.promo_keyboard(),
+        )
+        await state.update_data(bot_message_id=msg.message_id)
 
 
 @router.callback_query(F.data == "skip_promo")

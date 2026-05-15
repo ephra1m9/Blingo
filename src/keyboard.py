@@ -1,6 +1,15 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from .config import CHANNEL_URL
+
+
+channel_subscribe_kb = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="🔔 Подписаться на канал", url=CHANNEL_URL)],
+    ]
+)
+
 
 main_menu = InlineKeyboardMarkup(
     inline_keyboard=[

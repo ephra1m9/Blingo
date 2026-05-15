@@ -1,13 +1,15 @@
 import os
 import re
 
+CHANNEL_ID = -1003956618651
+CHANNEL_URL = "https://t.me/BlingoCom"
 
 STEAM_LOGIN_RE = re.compile(r'^[a-zA-Z0-9_]{2,32}$')
 
 # Минимальный платёж
 MIN_AMOUNT = 20
 # Максимальный платёж
-MAX_AMOUNT = 15_000
+MAX_AMOUNT = 100_000
 # Комиссия в процентах (целое число, например 10 = 10%)
 COMMISSION = 3
 

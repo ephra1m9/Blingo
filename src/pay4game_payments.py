@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 PAY4GAME_CREATE_URL = "https://pay4game.ru/api/v1/payment/create"
 SITE_REGISTER_URL = "https://kazna.shop/src/api/bot_steam_register.php"
+PROMO_VALIDATE_URL = "https://kazna.shop/src/api/bot_validate_promo.php"
 
 # Максимальное количество попыток генерации order_id при коллизии в БД
 MAX_ORDER_ID_RETRIES = 3
@@ -49,6 +50,8 @@ async def _register_on_site(
     steam_account: str,
     steam_amount: int,
     payment_amount: float,
+    method: str,
+    promo: str | None = None,
 ) -> None:
     """
     Регистрирует платёж на сайте kazna.shop после успешного создания в Pay4Game.
@@ -63,7 +66,10 @@ async def _register_on_site(
         "steam_account": steam_account,
         "steam_amount": steam_amount,
         "payment_amount": payment_amount,
+        "method": method,
     }
+    if promo:
+        payload["promo"] = promo
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -77,7 +83,62 @@ async def _register_on_site(
         logger.warning(f"Не удалось зарегистрировать платёж на сайте: {e}")
 
 
-async def create_payment_url(amount_rub: int, steam_login: str, user_id: int, method: str = "sbp") -> tuple[str, str]:
+async def validate_promo(promo: str) -> dict:
+    """
+    Проверяет промокод через API сайта kazna.shop.
+
+    Args:
+        promo: Промокод для проверки (до 16 символов).
+
+    Returns:
+        {"success": True, "commission": 5} — промокод применён.
+        {"success": False, "error": "..."}  — текст ошибки для пользователя.
+    """
+    payload = {"bot_token": BOT_SECRET_KEY, "promo": promo}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                PROMO_VALIDATE_URL,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                raw = await resp.text()
+                logger.info(f"Проверка промокода (HTTP {resp.status}): {raw[:200]}")
+
+                try:
+                    data = json.loads(raw)
+                except Exception:
+                    logger.error(f"Сайт вернул не JSON при проверке промокода: {raw[:200]}")
+                    return {"success": False, "error": "Некорректный ответ сервера"}
+
+                if resp.status == 200:
+                    commission = data.get("commission", COMMISSION)
+                    return {"success": True, "commission": commission}
+                elif resp.status == 400:
+                    return {"success": False, "error": "Введите корректный промокод"}
+                elif resp.status == 403:
+                    logger.error("Ошибка авторизации при проверке промокода: неверный BOT_SECRET_KEY?")
+                    return {"success": False, "error": "Ошибка конфигурации бота"}
+                elif resp.status == 404:
+                    return {"success": False, "error": "Промокод не найден"}
+                elif resp.status == 409:
+                    return {"success": False, "error": "Лимит использований промокода исчерпан"}
+                else:
+                    error_msg = data.get("error", f"HTTP {resp.status}")
+                    return {"success": False, "error": f"Ошибка сервера: {error_msg}"}
+    except Exception as e:
+        logger.warning(f"Сетевая ошибка при проверке промокода: {e}")
+        return {"success": False, "error": "Сервис проверки промокодов недоступен"}
+
+
+async def create_payment_url(
+    amount_rub: int,
+    steam_login: str,
+    user_id: int,
+    method: str = "sbp",
+    commission: int | None = None,
+    promo: str | None = None,
+) -> tuple[str, str, str]:
     """
     Создаёт заказ в БД, формирует платёж в Pay4Game и регистрирует его на сайте.
 
@@ -86,6 +147,7 @@ async def create_payment_url(amount_rub: int, steam_login: str, user_id: int, me
         steam_login: Логин Steam пользователя.
         user_id: Telegram user_id для уведомления после оплаты.
         method: Способ оплаты (sbp, card, sberpay, tpay, cardkz, carduz, uzum).
+        commission: Процент комиссии (если None — используется COMMISSION из config).
 
     Returns:
         Кортеж (payment_url, order_id).
@@ -116,8 +178,9 @@ async def create_payment_url(amount_rub: int, steam_login: str, user_id: int, me
 
     # 2. Формируем параметры платежа (invoice_id совпадает с order_id)
     invoice_id = order_id
-    email = f"user_{user_id}@blingo.bot"
-    amount_total = round(amount_rub * (1 + COMMISSION / 100), 2)
+    email = f"user_{user_id}@kazna.shop"
+    effective_commission = commission if commission is not None else COMMISSION
+    amount_total = round(amount_rub * (1 + effective_commission / 100), 2)
     amount_str = f"{amount_total:.2f}"
 
     # 3. Формируем подпись
@@ -186,6 +249,8 @@ async def create_payment_url(amount_rub: int, steam_login: str, user_id: int, me
         steam_account=steam_login,
         steam_amount=amount_rub,
         payment_amount=amount_total,
+        method=method,
+        promo=promo,
     )
 
     logger.info(
@@ -193,4 +258,4 @@ async def create_payment_url(amount_rub: int, steam_login: str, user_id: int, me
         f"uuid={payment_uuid}, agent_transaction_id={agent_transaction_id}"
     )
 
-    return payment_url, order_id
+    return payment_url, order_id, agent_transaction_id
