@@ -49,29 +49,30 @@ async def get_user_orders(user_id: int) -> list[OrdersHistory]:
             return []
 
 
-async def create_order(user_id: int, steam_login: str, amount: int) -> int | None:
-    """Создать новый заказ, вернуть order_id из БД"""
+async def create_order(order_id: str, user_id: int, steam_login: str, amount: int, method: str = "sbp") -> str | None:
+    """Создать новый заказ с переданным order_id, вернуть order_id при успехе"""
     async with get_async_session() as session:
         try:
             order = OrdersHistory(
+                order_id=order_id,
                 user_id=user_id,
                 steam_login=steam_login,
-                amount=amount
+                amount=amount,
+                method=method,
             )
 
             session.add(order)
             await session.commit()
-            await session.refresh(order)
-            logging.info(f"Добавлен новый заказ #{order.order_id} на сумму {amount} руб.")
-            return order.order_id
+            logging.info(f"Добавлен новый заказ #{order_id} на сумму {amount} руб.")
+            return order_id
 
         except Exception as e:
             await session.rollback()
-            logging.error(f"Ошибка при создании заказа: {e}")
+            logging.error(f"Ошибка при создании заказа #{order_id}: {e}")
             return None
 
 
-async def get_order(order_id: int) -> OrdersHistory | None:
+async def get_order(order_id: str) -> OrdersHistory | None:
     """Получить заказ из БД по order_id"""
     async with get_async_session() as session:
         try:
@@ -82,7 +83,21 @@ async def get_order(order_id: int) -> OrdersHistory | None:
             return None
 
 
-async def change_order_status(order_id: int, status: int) -> bool:
+async def get_order_by_agent_transaction_id(agent_transaction_id: str) -> OrdersHistory | None:
+    """Получить заказ из БД по agent_transaction_id (ID транзакции Pay4Game)"""
+    async with get_async_session() as session:
+        try:
+            result = await session.execute(
+                select(OrdersHistory)
+                .where(OrdersHistory.agent_transaction_id == agent_transaction_id)
+            )
+            return result.scalars().first()
+        except Exception as e:
+            logging.error(f"Ошибка при поиске заказа по agent_transaction_id={agent_transaction_id}: {e}")
+            return None
+
+
+async def change_order_status(order_id: str, status: int) -> bool:
     """Изменить статус заказа"""
     async with get_async_session() as session:
         try:
@@ -101,17 +116,17 @@ async def change_order_status(order_id: int, status: int) -> bool:
 
 
 async def update_order_after_payment(
-    order_id: int,
+    order_id: str,
     status: int,
-    dessly_order_id: str | None = None,
+    agent_transaction_id: str | None = None,
 ) -> bool:
     """
-    Обновить статус заказа и сохранить dessly_order_id после обработки платежа.
+    Обновить статус заказа и сохранить agent_transaction_id после обработки платежа.
 
     Args:
         order_id: ID заказа в нашей БД.
         status: Числовой код статуса из ORDER_STATUS (1 — Оплачен, 3 — Отменён).
-        dessly_order_id: ID заказа в системе Dessly (если есть).
+        agent_transaction_id: ID транзакции в системе Pay4Game (если есть).
 
     Returns:
         True при успехе, False при ошибке.
@@ -123,15 +138,125 @@ async def update_order_after_payment(
                 logging.warning(f"Заказ #{order_id} не найден при update_order_after_payment")
                 return False
             order.status = ORDER_STATUS[str(status)]
-            if dessly_order_id is not None:
-                order.dessly_order_id = dessly_order_id
+            if agent_transaction_id is not None:
+                order.agent_transaction_id = agent_transaction_id
             await session.commit()
             logging.info(
                 f"Заказ #{order_id} обновлён: status='{ORDER_STATUS[str(status)]}', "
-                f"dessly_order_id={dessly_order_id}"
+                f"agent_transaction_id={agent_transaction_id}"
             )
             return True
         except Exception as e:
             await session.rollback()
             logging.error(f"Ошибка при update_order_after_payment для заказа #{order_id}: {e}")
             return False
+
+
+async def update_order_agent_transaction_id(order_id: str, agent_transaction_id: str) -> bool:
+    """
+    Сохранить agent_transaction_id в заказе сразу после создания платежа в Pay4Game.
+
+    Args:
+        order_id: ID заказа в нашей БД.
+        agent_transaction_id: ID транзакции Pay4Game.
+
+    Returns:
+        True при успехе, False при ошибке.
+    """
+    async with get_async_session() as session:
+        try:
+            order = await session.get(OrdersHistory, order_id)
+            if not order:
+                logging.warning(f"Заказ #{order_id} не найден при update_order_agent_transaction_id")
+                return False
+            order.agent_transaction_id = agent_transaction_id
+            await session.commit()
+            logging.info(f"Заказ #{order_id}: сохранён agent_transaction_id={agent_transaction_id}")
+            return True
+        except Exception as e:
+            await session.rollback()
+            logging.error(f"Ошибка при update_order_agent_transaction_id для заказа #{order_id}: {e}")
+            return False
+
+
+async def update_steam_status(agent_transaction_id: str, steam_status: str) -> bool:
+    """
+    Обновить статус пополнения Steam по agent_transaction_id.
+
+    Args:
+        agent_transaction_id: ID транзакции Pay4Game.
+        steam_status: Статус пополнения Steam (pending, success, error).
+
+    Returns:
+        True при успехе, False при ошибке.
+    """
+    async with get_async_session() as session:
+        try:
+            result = await session.execute(
+                select(OrdersHistory)
+                .where(OrdersHistory.agent_transaction_id == agent_transaction_id)
+            )
+            order = result.scalars().first()
+            if not order:
+                logging.warning(f"Заказ не найден при update_steam_status: agent_transaction_id={agent_transaction_id}")
+                return False
+            order.steam_status = steam_status
+            await session.commit()
+            logging.info(
+                f"Заказ #{order.order_id}: steam_status обновлён на '{steam_status}' "
+                f"(agent_transaction_id={agent_transaction_id})"
+            )
+            return True
+        except Exception as e:
+            await session.rollback()
+            logging.error(f"Ошибка при update_steam_status для agent_transaction_id={agent_transaction_id}: {e}")
+            return False
+
+
+async def save_payment_message_id(order_id: str, message_id: int) -> bool:
+    """
+    Сохранить message_id сообщения с кнопками оплаты в заказе.
+
+    Args:
+        order_id: ID заказа в нашей БД.
+        message_id: Telegram message_id сообщения с кнопками оплаты.
+
+    Returns:
+        True при успехе, False при ошибке.
+    """
+    async with get_async_session() as session:
+        try:
+            order = await session.get(OrdersHistory, order_id)
+            if not order:
+                logging.warning(f"Заказ #{order_id} не найден при save_payment_message_id")
+                return False
+            order.payment_message_id = message_id
+            await session.commit()
+            logging.info(f"Заказ #{order_id}: сохранён payment_message_id={message_id}")
+            return True
+        except Exception as e:
+            await session.rollback()
+            logging.error(f"Ошибка при save_payment_message_id для заказа #{order_id}: {e}")
+            return False
+
+
+async def get_payment_message_id(order_id: str) -> int | None:
+    """
+    Получить message_id сообщения с кнопками оплаты для удаления.
+
+    Args:
+        order_id: ID заказа в нашей БД.
+
+    Returns:
+        message_id или None, если заказ не найден или поле не задано.
+    """
+    async with get_async_session() as session:
+        try:
+            order = await session.get(OrdersHistory, order_id)
+            if not order:
+                logging.warning(f"Заказ #{order_id} не найден при get_payment_message_id")
+                return None
+            return order.payment_message_id
+        except Exception as e:
+            logging.error(f"Ошибка при get_payment_message_id для заказа #{order_id}: {e}")
+            return None

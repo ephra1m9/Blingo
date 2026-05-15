@@ -20,25 +20,47 @@ from .db.db_helper import (
     get_or_create_user,
     get_user_orders,
     change_order_status,
-    get_order
+    get_order,
+    save_payment_message_id,
+    get_payment_message_id,
 )
-from .freekassa_payments import create_payment_url
-from .dessly.get_transaction_status import get_dessly_transaction, get_status_label
-from .dessly.steam_top_up import check_steam_login
+from .pay4game_payments import create_payment_url
+from .pay4game_check import check_steam_login
+from .pay4game_poller import wait_for_payment_and_notify
 
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+# Метки статусов пополнения Steam
+STEAM_STATUS_LABELS = {
+    "pending": "⏳ В обработке",
+    "success": "✅ Выполнено",
+    "error":   "❌ Ошибка",
+}
 
 
 # ========== FSM СОСТОЯНИЯ ==========
 class SteamPayState(StatesGroup):
     waiting_login = State()
     waiting_amount = State()
+    waiting_promo = State()
+    waiting_method = State()
     waiting_pay = State()
 
 
 # ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+async def safe_delete_message(bot: Bot, chat_id: int, message_id: int) -> None:
+    """
+    Безопасно удаляет сообщение, игнорируя ошибки
+    (например, если сообщение уже удалено).
+    """
+    try:
+        await bot.delete_message(chat_id, message_id)
+    except Exception as e:
+        logger.debug(f"Не удалось удалить сообщение {message_id} в чате {chat_id}: {e}")
+
+
 async def show_main_menu(target: Message, user: User, edit: bool = False):
     user_id = user.id
     user_name = user.full_name
@@ -91,7 +113,11 @@ async def cmd_feedback(m: Message):
 async def steam_pay(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SteamPayState.waiting_login)
 
-    await callback.message.edit_text(
+    # Удаляем главное меню
+    await safe_delete_message(callback.bot, callback.message.chat.id, callback.message.message_id)
+
+    # Отправляем новое сообщение с запросом логина
+    msg = await callback.message.answer(
         "<b>Пополнение баланса Steam</b>\n\n"
         "Введите ваш логин Steam:\n\n"
         "<i><b>⚠️ Будьте внимательны!</b>\n"
@@ -99,7 +125,8 @@ async def steam_pay(callback: CallbackQuery, state: FSMContext):
         parse_mode="HTML",
         reply_markup=kb.back_to_menu
     )
-    
+
+    await state.update_data(bot_message_id=msg.message_id)
     await callback.answer()
 
 
@@ -109,36 +136,22 @@ async def my_orders_history(callback: CallbackQuery):
     orders_list = await get_user_orders(user_id)
 
     if orders_list:
-        # Параллельно запрашиваем статусы Dessly для заказов с dessly_order_id
-        async def _empty() -> dict:
-            return {}
-
-        dessly_tasks = [
-            get_dessly_transaction(order.dessly_order_id)
-            if order.dessly_order_id
-            else _empty()
-            for order in orders_list
-        ]
-        dessly_results = await asyncio.gather(*dessly_tasks, return_exceptions=True)
-
         lines = []
-        for order, dessly_data in zip(orders_list, dessly_results):
+        for order in orders_list:
             date_str = order.created_at.strftime("%d.%m.%Y %H:%M")
-            code = order.dessly_order_id if order.dessly_order_id else "—"
-
-            if isinstance(dessly_data, dict) and dessly_data.get("status"):
-                dessly_status = get_status_label(dessly_data["status"])
-            else:
-                dessly_status = "—"
+            agent_id = order.agent_transaction_id if order.agent_transaction_id else "—"
+            steam_status_label = STEAM_STATUS_LABELS.get(
+                order.steam_status or "", "—"
+            )
 
             lines.append(
                 f"<b>Заказ №{order.order_id}:</b>\n"
                 f"<b>Дата:</b> {date_str}\n"
-                f"<b>Код:</b> <code>{code}</code>\n"
+                f"<b>ID транзакции:</b> <code>{agent_id}</code>\n"
                 f"<b>Логин Steam:</b> {order.steam_login}\n"
                 f"<b>Сумма:</b> {order.amount} руб.\n"
                 f"<b>Статус оплаты:</b> {order.status}\n"
-                f"<b>Статус выполнения:</b> {dessly_status}"
+                f"<b>Статус пополнения:</b> {steam_status_label}"
             )
 
         text = "<b>📖 История пополнений</b>\n\n" + "\n\n".join(lines)
@@ -156,6 +169,8 @@ async def my_orders_history(callback: CallbackQuery):
 
 @router.callback_query(F.data == "cancel_payment")
 async def cancel_payment(callback: CallbackQuery, state: FSMContext):
+    from .pay4game_poller import cancel_polling
+
     data = await state.get_data()
     order_id = data.get("order_id")
 
@@ -166,6 +181,8 @@ async def cancel_payment(callback: CallbackQuery, state: FSMContext):
             success = await change_order_status(order_id, 3)
             if success:
                 logger.info(f"Заказ #{order_id} отменён пользователем {callback.from_user.id}")
+                # Останавливаем фоновую задачу поллинга
+                cancel_polling(order_id)
             else:
                 logger.warning(f"Не удалось отменить заказ #{order_id} для пользователя {callback.from_user.id}")
                 await callback.answer("Отмена невозможна: заказ уже оплачен или обрабатывается.", show_alert=True)
@@ -181,7 +198,12 @@ async def cancel_payment(callback: CallbackQuery, state: FSMContext):
 
     await state.clear()
 
-    await callback.message.edit_text(
+    # Удаляем сообщение с кнопками оплаты
+    payment_msg_id = await get_payment_message_id(order_id) if order_id else None
+    if payment_msg_id:
+        await safe_delete_message(callback.bot, callback.message.chat.id, payment_msg_id)
+
+    await callback.message.answer(
         "❌ <b>Платёж отменён.</b>\n\n"
         "Вы можете создать новый заказ в главном меню.",
         parse_mode="HTML",
@@ -203,6 +225,8 @@ async def process_login(m: Message, state: FSMContext):
     login = m.text.strip() if m.text else ""
 
     if not STEAM_LOGIN_RE.match(login):
+        # Удаляем сообщение пользователя с неверным логином
+        await safe_delete_message(m.bot, m.chat.id, m.message_id)
         await m.answer(
             "❌ <b>Неверный логин Steam.</b>\n\n"
             "Логин может содержать только латинские буквы, цифры и символ подчёркивания (_), "
@@ -213,13 +237,22 @@ async def process_login(m: Message, state: FSMContext):
         )
         return
 
-    # Показываем с��общение о проверке пока идёт запрос к API
+    # Удаляем сообщение пользователя с логином
+    await safe_delete_message(m.bot, m.chat.id, m.message_id)
+
+    # Удаляем предыдущее сообщение бота (запрос логина)
+    data = await state.get_data()
+    prev_bot_msg_id = data.get("bot_message_id")
+    if prev_bot_msg_id:
+        await safe_delete_message(m.bot, m.chat.id, prev_bot_msg_id)
+
+    # Показываем сообщение о проверке пока идёт запрос к API
     checking_msg = await m.answer(
         "⏳ <b>Проверяем логин Steam...</b>",
         parse_mode="HTML",
     )
 
-    result = await check_steam_login(login, amount=1.0)
+    result = await check_steam_login(login)
 
     if result.get("error"):
         # Сетевая ошибка — предупреждаем и пропускаем дальше
@@ -232,7 +265,7 @@ async def process_login(m: Message, state: FSMContext):
             parse_mode="HTML",
             reply_markup=kb.back_to_menu
         )
-        await state.update_data(steam_login=login)
+        await state.update_data(steam_login=login, bot_message_id=checking_msg.message_id)
         await state.set_state(SteamPayState.waiting_amount)
         return
 
@@ -246,6 +279,7 @@ async def process_login(m: Message, state: FSMContext):
             parse_mode="HTML",
             reply_markup=kb.back_to_menu
         )
+        await state.update_data(bot_message_id=checking_msg.message_id)
         return
 
     # Логин подтверждён
@@ -256,7 +290,7 @@ async def process_login(m: Message, state: FSMContext):
         parse_mode="HTML",
         reply_markup=kb.back_to_menu
     )
-    await state.update_data(steam_login=login)
+    await state.update_data(steam_login=login, bot_message_id=checking_msg.message_id)
     await state.set_state(SteamPayState.waiting_amount)
 
 
@@ -266,6 +300,7 @@ async def process_amount(m: Message, state: FSMContext):
     raw = m.text.strip() if m.text else ""
 
     if not raw.lstrip('-').isdigit():
+        await safe_delete_message(m.bot, m.chat.id, m.message_id)
         await m.answer(
             "❌ Сумма должна быть целым числом.\n\n"
             "Попробуйте ещё раз:",
@@ -277,6 +312,7 @@ async def process_amount(m: Message, state: FSMContext):
     amount = int(raw)
 
     if amount < MIN_AMOUNT:
+        await safe_delete_message(m.bot, m.chat.id, m.message_id)
         await m.answer(
             f"❌ Минимальная сумма пополнения — <b>{MIN_AMOUNT} руб.</b>\n\n"
             f"Попробуйте ещё раз:",
@@ -286,6 +322,7 @@ async def process_amount(m: Message, state: FSMContext):
         return
 
     if amount > MAX_AMOUNT:
+        await safe_delete_message(m.bot, m.chat.id, m.message_id)
         await m.answer(
             f"❌ Максимальная сумма пополнения — <b>{MAX_AMOUNT:,} руб.</b>\n\n".replace(",", " ") +
             "Попробуйте ещё раз:",
@@ -294,27 +331,75 @@ async def process_amount(m: Message, state: FSMContext):
         )
         return
 
+    # Удаляем сообщение пользователя с суммой
+    await safe_delete_message(m.bot, m.chat.id, m.message_id)
+
+    # Удаляем предыдущее сообщение бота (подтверждение логина / ввод суммы)
+    data = await state.get_data()
+    prev_bot_msg_id = data.get("bot_message_id")
+    if prev_bot_msg_id:
+        await safe_delete_message(m.bot, m.chat.id, prev_bot_msg_id)
+
+    await state.update_data(amount=amount)
+    await state.set_state(SteamPayState.waiting_promo)
+
+    msg = await m.answer(
+        "🎟️ <b>Есть промокод?</b>\n\n"
+        "Введите промокод или нажмите <b>«Пропустить»</b>, если его нет.",
+        parse_mode="HTML",
+        reply_markup=kb.promo_keyboard(),
+    )
+
+    await state.update_data(bot_message_id=msg.message_id)
+
+
+# ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: СОЗДАНИЕ ПЛАТЕЖА ==========
+async def _proceed_to_payment(
+    message: Message,
+    state: FSMContext,
+    user_id: int,
+    method: str,
+) -> None:
+    """Создаёт платёж Pay4Game и запускает поллинг. Используется из обработчика выбора метода оплаты."""
     data = await state.get_data()
     login = data["steam_login"]
+    amount = data["amount"]
+    promo = data.get("promo")
     total = round(amount * (1 + COMMISSION / 100))
+
+    # Удаляем предыдущее сообщение бота (выбор метода оплаты)
+    prev_bot_msg_id = data.get("bot_message_id")
+    if prev_bot_msg_id:
+        await safe_delete_message(message.bot, message.chat.id, prev_bot_msg_id)
 
     await state.set_state(SteamPayState.waiting_pay)
 
-    # Создаём ссылку на оплату через FreeKassa
-    payment_url, order_id = await create_payment_url(
-        amount_rub=amount,
-        steam_login=login,
-        user_id=m.from_user.id,
-    )
+    try:
+        payment_url, order_id = await create_payment_url(
+            amount_rub=amount,
+            steam_login=login,
+            user_id=user_id,
+            method=method,
+        )
+    except Exception as e:
+        logger.error(f"Ошибка создания платежа Pay4Game: {e}")
+        await state.clear()
+        await message.answer(
+            "❌ <b>Не удалось создать платёж.</b>\n\n"
+            "Попробуйте позже или обратитесь в поддержку.",
+            parse_mode="HTML",
+            reply_markup=kb.back_to_menu,
+        )
+        return
 
     logger.info(
-        f"Создан заказ FreeKassa: order_id={order_id}, "
-        f"user_id={m.from_user.id}, steam={login}, amount={amount}"
+        f"Создан заказ Pay4Game: order_id={order_id}, "
+        f"user_id={user_id}, steam={login}, amount={amount}, promo={promo!r}"
     )
 
     await state.update_data(order_id=order_id)
 
-    await m.answer(
+    payment_msg = await message.answer(
         f"✅ <b>Заявка на пополнение:</b>\n\n"
         f"🎮 Логин Steam: <code>{login}</code>\n"
         f"💰 Сумма пополнения: <b>{amount} руб.</b>\n"
@@ -324,3 +409,79 @@ async def process_amount(m: Message, state: FSMContext):
         parse_mode="HTML",
         reply_markup=kb.payment_keyboard(payment_url),
     )
+
+    # Сохраняем message_id сообщения с кнопками оплаты в БД для последующего удаления
+    await save_payment_message_id(order_id, payment_msg.message_id)
+
+    # Запускаем фоновый поллинг статуса платежа
+    order_record = await get_order(order_id)
+    if order_record and order_record.agent_transaction_id:
+        asyncio.create_task(
+            wait_for_payment_and_notify(
+                bot=message.bot,
+                user_id=user_id,
+                agent_transaction_id=order_record.agent_transaction_id,
+                order_id=order_id,
+            )
+        )
+    else:
+        logger.warning(f"Поллинг не запущен: agent_transaction_id отсутствует для order_id={order_id}")
+
+
+# ========== FSM: ВВОД ПРОМОКОДА ==========
+@router.message(SteamPayState.waiting_promo)
+async def process_promo(m: Message, state: FSMContext):
+    promo = m.text.strip() if m.text else ""
+
+    # Удаляем сообщение пользователя с промокодом
+    await safe_delete_message(m.bot, m.chat.id, m.message_id)
+
+    # Удаляем предыдущее сообщение бота (запрос промокода)
+    data = await state.get_data()
+    prev_bot_msg_id = data.get("bot_message_id")
+    if prev_bot_msg_id:
+        await safe_delete_message(m.bot, m.chat.id, prev_bot_msg_id)
+
+    await state.update_data(promo=promo if promo else None)
+    await state.set_state(SteamPayState.waiting_method)
+
+    msg = await m.answer(
+        "<b>💳 Выберите способ оплаты:</b>",
+        parse_mode="HTML",
+        reply_markup=kb.payment_method_keyboard(),
+    )
+
+    await state.update_data(bot_message_id=msg.message_id)
+
+
+@router.callback_query(F.data == "skip_promo")
+async def skip_promo(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(promo=None)
+
+    await safe_delete_message(callback.bot, callback.message.chat.id, callback.message.message_id)
+
+    data = await state.get_data()
+    prev_bot_msg_id = data.get("bot_message_id")
+    if prev_bot_msg_id:
+        await safe_delete_message(callback.bot, callback.message.chat.id, prev_bot_msg_id)
+
+    await callback.answer()
+    await state.set_state(SteamPayState.waiting_method)
+
+    msg = await callback.message.answer(
+        "<b>💳 Выберите способ оплаты:</b>",
+        parse_mode="HTML",
+        reply_markup=kb.payment_method_keyboard(),
+    )
+
+    await state.update_data(bot_message_id=msg.message_id)
+
+
+# ========== FSM: ВЫБОР СПОСОБА ОПЛАТЫ ==========
+@router.callback_query(F.data.startswith("paymethod_"), SteamPayState.waiting_method)
+async def process_payment_method(callback: CallbackQuery, state: FSMContext):
+    """Сохраняет выбранный метод оплаты и запускает создание платежа."""
+    method = callback.data.removeprefix("paymethod_")
+    await state.update_data(method=method)
+    await callback.answer()
+    await _proceed_to_payment(callback.message, state, callback.from_user.id, method)

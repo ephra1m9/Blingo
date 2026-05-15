@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<!-- saved from url=(0029)https://pay4game.ru/admin/doc -->
+<html lang="ru" class="sidebar-expanded dark"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        
+        <meta name="csrf-token" content="oq8CNCdZlYPOoqb5P0qJWe688nUHwChnR1mtenTJ">
+        <title>Панель управления</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" href="https://pay4game.ru/admin/res/favicon.ico" sizes="16x16">
+        <link rel="icon" href="https://pay4game.ru/admin/res/favicon.ico" sizes="32x32">
+        <link rel="icon" href="https://pay4game.ru/admin/res/img/favicon/favicon.svg" type="image/svg+xml">
+        <link rel="apple-touch-icon" sizes="180x180" href="https://pay4game.ru/admin/res/img/favicon/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="https://pay4game.ru/admin/res/img/favicon/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="https://pay4game.ru/admin/res/img/favicon/favicon-16x16.png">
+        <link rel="manifest" href="https://pay4game.ru/admin/res/favic.webmanifest">
+        <meta name="msapplication-TileColor" content="#da532c">
+        <meta name="theme-color" content="#ffffff">
+        <link rel="mask-icon" href="https://pay4game.ru/admin/res/img/favicon/safari-pinned-tab.svg" color="#5bbad5">
+        <link rel="stylesheet" href="./Панель управления_files/all.min.css">
+        <link rel="stylesheet" href="./Панель управления_files/daterangepicker.css">
+        <link rel="stylesheet" href="./Панель управления_files/bootstrap-datetimepicker.min.css">
+        <link rel="stylesheet" href="./Панель управления_files/toastr.min.css">
+        <link rel="stylesheet" href="./Панель управления_files/select2.min.css">
+        <link rel="stylesheet" href="./Панель управления_files/select2-bootstrap4.min.css">
+        <link rel="stylesheet" href="./Панель управления_files/main.css">
+        <script src="./Панель управления_files/sidebar-switcher.js.загрузка"></script>
+    <style> @-webkit-keyframes loadingoverlay_animation__rotate_right { to { -webkit-transform : rotate(360deg); transform : rotate(360deg); } } @keyframes loadingoverlay_animation__rotate_right { to { -webkit-transform : rotate(360deg); transform : rotate(360deg); } } @-webkit-keyframes loadingoverlay_animation__rotate_left { to { -webkit-transform : rotate(-360deg); transform : rotate(-360deg); } } @keyframes loadingoverlay_animation__rotate_left { to { -webkit-transform : rotate(-360deg); transform : rotate(-360deg); } } @-webkit-keyframes loadingoverlay_animation__fadein { 0% { opacity   : 0; -webkit-transform : scale(0.1, 0.1); transform : scale(0.1, 0.1); } 50% { opacity   : 1; } 100% { opacity   : 0; -webkit-transform : scale(1, 1); transform : scale(1, 1); } } @keyframes loadingoverlay_animation__fadein { 0% { opacity   : 0; -webkit-transform : scale(0.1, 0.1); transform : scale(0.1, 0.1); } 50% { opacity   : 1; } 100% { opacity   : 0; -webkit-transform : scale(1, 1); transform : scale(1, 1); } } @-webkit-keyframes loadingoverlay_animation__pulse { 0% { -webkit-transform : scale(0, 0); transform : scale(0, 0); } 50% { -webkit-transform : scale(1, 1); transform : scale(1, 1); } 100% { -webkit-transform : scale(0, 0); transform : scale(0, 0); } } @keyframes loadingoverlay_animation__pulse { 0% { -webkit-transform : scale(0, 0); transform : scale(0, 0); } 50% { -webkit-transform : scale(1, 1); transform : scale(1, 1); } 100% { -webkit-transform : scale(0, 0); transform : scale(0, 0); } } </style></head>
+    <body cz-shortcut-listen="true">
+        <aside class="sidebar">
+            <header class="sidebar__top">
+                <button type="button" class="sidebar__burger">
+                    <svg class="icon icon-burger ">
+                        <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#burger"></use>
+                    </svg>
+                </button>
+                <a href="https://pay4game.ru/admin/dashboard" class="sidebar__logo"><img src="./Панель управления_files/logo.svg" alt="alt"></a>
+            </header>
+            <div class="sidebar__body">
+                <nav class="menu">
+                    <ul class="menu__list">
+                        <li class="menu__item">
+            <a href="https://pay4game.ru/admin/order" class="menu__link">
+                                    <span class="menu__icon">
+                        <svg class="icon icon-trans">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#trans"></use>
+                        </svg>
+                    </span>
+                                <span class="menu__value">Транзакции</span>
+            </a>
+        </li>
+    <li class="menu__item">
+                <a href="https://pay4game.ru/admin/topup" class="menu__link">
+                                            <span class="menu__icon">
+                            <svg class="icon icon-trans">
+                                <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#trans"></use>
+                            </svg>
+                        </span>
+                                        <span class="menu__value">Пополнение Steam</span>
+                </a>
+            </li>
+            <li class="menu__item">
+            <a href="https://pay4game.ru/admin/profile" class="menu__link">
+                                    <span class="menu__icon">
+                        <svg class="icon icon-profile">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#profile"></use>
+                        </svg>
+                    </span>
+                                <span class="menu__value">Профиль</span>
+            </a>
+        </li>
+    <li class="menu__item">
+            <a href="https://pay4game.ru/admin/setting" class="menu__link">
+                                    <span class="menu__icon">
+                        <svg class="icon icon-setts">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#setts"></use>
+                        </svg>
+                    </span>
+                                <span class="menu__value">Настройки</span>
+            </a>
+        </li>
+    <li class="menu__item">
+                <a href="https://pay4game.ru/admin/payout" class="menu__link">
+                                            <span class="menu__icon">
+                            <svg class="icon icon-payments">
+                                <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#payments"></use>
+                            </svg>
+                        </span>
+                                        <span class="menu__value">Выплаты</span>
+                </a>
+            </li>
+            <li class="menu__item">
+            <a href="https://pay4game.ru/admin/finance" class="menu__link">
+                                    <span class="menu__icon">
+                        <svg class="icon icon-payments">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#payments"></use>
+                        </svg>
+                    </span>
+                                <span class="menu__value">Финансы</span>
+            </a>
+        </li>
+    <li class="menu__item active">
+            <a href="https://pay4game.ru/admin/doc" class="menu__link">
+                                    <span class="menu__icon">
+                        <svg class="icon icon-window-doc">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#window-doc"></use>
+                        </svg>
+                    </span>
+                                <span class="menu__value">Документация API</span>
+            </a>
+        </li>
+    <li class="menu__item">
+            <a href="https://pay4game.ru/admin/activity" class="menu__link">
+                                    <span class="menu__icon">
+                        <svg class="icon icon-log">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#log"></use>
+                        </svg>
+                    </span>
+                                <span class="menu__value">Лог операций</span>
+            </a>
+        </li>
+    <li class="menu__item">
+            <a href="https://pay4game.ru/admin/report" class="menu__link">
+                                    <span class="menu__icon">
+                        <svg class="icon icon-log">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#log"></use>
+                        </svg>
+                    </span>
+                                <span class="menu__value">Отчеты</span>
+            </a>
+        </li>
+    <li class="menu__item">
+            <a href="https://pay4game.ru/admin/employee" class="menu__link">
+                                    <span class="menu__icon">
+                        <svg class="icon icon-profile">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#profile"></use>
+                        </svg>
+                    </span>
+                                <span class="menu__value">Сотрудники</span>
+            </a>
+        </li>
+    <li class="menu__item">
+                <a href="https://pay4game.ru/admin/blacklist" class="menu__link">
+                                            <span class="menu__icon">
+                            <svg class="icon icon-ban">
+                                <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#ban"></use>
+                            </svg>
+                        </span>
+                                        <span class="menu__value">Черный список</span>
+                </a>
+            </li>
+                                </ul>
+                </nav>
+            </div>
+        </aside>
+        <main class="main">
+            <header class="header">
+                <div class="header__security security-header">
+                                                                                                        <div class="security-header__icon">
+                                    <svg class="icon icon-security-green ">
+                                        <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#security-green"></use>
+                                    </svg>
+                                </div>
+                                <div class="security-header__text" title="Двухфакторная аутентификация включена">2FA включена</div>
+                                                                                                                </div>
+                <div class="header__right">
+                    <label class="header__lang lang-header">
+                        <input type="checkbox" name="langs" class="lang-header__check"><span class="lang-header__value">
+                            <svg class="icon icon-en-lang ">
+                                <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg?v1#en-lang"></use>
+                            </svg>
+                            <svg class="icon icon-ru-lang ">
+                                <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg?v2#ru-lang"></use>
+                            </svg></span>
+                    </label>
+                    <button type="button" class="header__theme-switcher">
+                        <svg class="icon icon-sun ">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg?v2#sun"></use>
+                        </svg>
+                        <svg class="icon icon-moon-stars ">
+                            <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg?v2#moon-stars"></use>
+                        </svg>
+                    </button>
+                <div class="header__actions actions-header">
+                                                                        <a href="https://pay4game.ru/admin/payout" class="actions-header__item item-actions-header">
+                                <div class="item-actions-header__icon">
+                                    <svg class="icon icon-ruble ">
+                                        <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#ruble"></use>
+                                    </svg>
+                                </div>
+                                <div class="item-actions-header__money">0</div>
+                            </a>
+                                                <a href="https://pay4game.ru/admin/profile" class="actions-header__item item-actions-header">
+                            <div class="item-actions-header__icon">
+                                <svg class="icon icon-profile ">
+                                    <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#profile"></use>
+                                </svg>
+                            </div>
+                            <div class="item-actions-header__val">kazna.shop</div>
+                        </a>
+                        <a href="https://pay4game.ru/logout" class="actions-header__item item-actions-header" onclick="event.preventDefault();document.getElementById(&#39;logout-form&#39;).submit();">
+                            <div class="item-actions-header__icon">
+                                <svg class="icon icon-exit ">
+                                    <use xlink:href="/admin/res/img/icons-svg/svg-sprite.svg#exit"></use>
+                                </svg>
+                            </div>
+                            <div class="item-actions-header__val">Выйти</div>
+                            <form id="logout-form" action="https://pay4game.ru/logout" method="POST" style="display: none;">
+                                <input type="hidden" name="_token" value="oq8CNCdZlYPOoqb5P0qJWe688nUHwChnR1mtenTJ" autocomplete="off">                            </form>
+                        </a>
+                                    </div>
+                </div>
+            </header>
+            <div class="main-content">
+                <div class="page">
+                        <section class="form__block card">
+        <h1>Документация API</h1>
+        <div class="docs-content">
+            <button class="accordion active">Авторизация</button>
+            <div class="accordion-panel" style="max-height: 136px;">
+                <div class="accordion-panel--content mb-4">
+                    <h4>Авторизация</h4>
+                    <p>Для авторизации необходимо в заголовке Authorization передавать токен: <span class="badge badge-secondary">Authorization: Bearer</span></p>
+                    <p><b>Токен авторизации</b> можно получить на странице <a href="https://pay4game.ru/admin/setting">Настройки</a>.</p>
+                </div>
+            </div>
+
+            <button class="accordion active">Создание платежа</button>
+            <div class="accordion-panel" style="max-height: 3240px;">
+                <div class="accordion-panel--content mb-4">
+                    <h4>Создание платежа</h4>
+                    <p>1. Отправьте запрос на проведение платежа с помощью метода <span class="badge badge-secondary">payment/create</span>. В ответ на запрос в параметре url передается ссылка на страницу оплаты.</p>
+                    <blockquote>
+                        <p>Полученную ссылку в iframe открывать нельзя, только в новой или текущей вкладке</p>
+                    </blockquote>
+                    <p>2. Дождитесь вебхука <span class="badge badge-secondary">inform</span>. В параметре <span class="badge badge-secondary">qr.content</span> передается диплинк на оплату, который либо можно показать плательщику в виде QR-кода, либо отправить по нему плательщика в приложение эмитента. URL для возврата пользователя из приложения эмитента необходимо прописать на странице <a href="https://pay4game.ru/admin/setting">Настройки</a>.</p>
+                    <blockquote>
+                        <ul class="mb-0">
+                            <li>Вебхук <span class="badge badge-secondary">inform</span> отправляется только для способа оплаты sbp и переданного параметра sbp_type=qr. Для card и sberpay в ответ на запрос создания платежа приходит url на страницу оплаты. Для ответа qr обратитесь к администратору.</li>
+                        </ul>
+                    </blockquote>
+                    <p>3. Дождитесь вебхука <span class="badge badge-secondary">status</span> с результатом проведения платежа. Статус <span class="badge badge-secondary">success</span> сообщает вам, что платеж успешно проведен.</p>
+                    <blockquote>
+                        <ul class="mb-0">
+                            <li>Обязательно проверяйте подпись запроса.</li>
+                            <li>Обязательно проверяйте параметр <span class="badge bg-purple">hold</span>. Подробнее в разделе Вебхуки.</li>
+                        </ul>
+                    </blockquote>
+                    <p>Для отображения виджета на своем сайте при способе оплаты card обратитесь к администратору. После включения данной опции в ответ будет приходить token, с помощью которого можно отобразить виджет согласно <a href="https://developer.131.ru/payments/payment-widget" target="_blank">инструкции</a>.</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4><span class="badge badge-success">POST</span> payment/create</h4>
+                    <div class="mb-3">
+                        <input type="text" class="form__input" value="https://pay4game.ru/api/v1/payment/create" disabled="">
+                    </div>
+                    <h6>Параметры запроса</h6>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th>Тег</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>method</td>
+                                    <td>string</td>
+                                    <td>Способ оплаты (sbp, card, sberpay, tpay, cardkz, carduz, uzum). По умолчанию sbp</td>
+                                </tr>
+                                <tr>
+                                    <td>sbp_type</td>
+                                    <td>string</td>
+                                    <td>Тип ответа sbp (qr или url). По умолчанию url (для ответа qr обратитесь к администратору)</td>
+                                </tr>
+                                <tr>
+                                    <td>invoice_id</td>
+                                    <td>string</td>
+                                    <td>Идентификатор заказа</td>
+                                </tr>
+                                <tr>
+                                    <td>amount</td>
+                                    <td>decimal</td>
+                                    <td>Сумма заказа</td>
+                                </tr>
+                                <tr>
+                                    <td>email</td>
+                                    <td>string</td>
+                                    <td>E-mail клиента</td>
+                                </tr>
+                                <tr>
+                                    <td>client_ip</td>
+                                    <td>string</td>
+                                    <td>IP адрес клиента</td>
+                                </tr>
+                                <tr>
+                                    <td>return_url</td>
+                                    <td>string</td>
+                                    <td>URL для возврата пользователя</td>
+                                </tr>
+                                <tr>
+                                    <td>steam_account</td>
+                                    <td>string</td>
+                                    <td>Логин Steam</td>
+                                </tr>
+                                <tr>
+                                    <td>steam_amount</td>
+                                    <td>decimal</td>
+                                    <td>Сумма пополнения баланса Steam (мин.: 20 руб., макс.: 50000 руб.)</td>
+                                </tr>
+                                <tr>
+                                    <td>risk</td>
+                                    <td>integer</td>
+                                    <td>Товар высокого риска (0 - нет, 1 - да)</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <blockquote>
+                        <p>Если переданы параметры steam_account и steam_amount, то в ответе придет дополнительный параметр agent_transaction_id. После успешной оплаты будет выполнено пополнение баланса Steam и отправлен вебхук <span class="badge badge-secondary">status_steam</span></p>
+                    </blockquote>
+                    <h6>Подпись запроса</h6>
+                    <p>Для формирование подписи необходимо использовать следующие данные: "Идентификатор заказа:Сумма заказа:E-mail клиента" (разделены символом ":").</p>
+                    <p>Вычисляется HMAC по алгоритму SHA256. <b>Секретный ключ</b> можно получить на странице <a href="https://pay4game.ru/admin/setting">Настройки</a>.</p>
+                    <p>Подпись необходимо передать в заголовке <span class="badge badge-secondary">X-REQUEST-SIGNATURE</span></p>
+                    <p>Если у вас несколько проектов, то обязательно необходимо передавать ID проекта в заголовке <span class="badge badge-secondary">X-REQUEST-PROJECT</span></p>
+                    <h6>Пример кода</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="3" disabled="">$secretKey = 'F9s57vYDzuZIbrXtF42wSHpWbsfJBJeiCHngFn75wKXc5...';
+$data = "{$invoice_id}:{$amount}:{$email}";
+$signature = hash_hmac("sha256", $data, $secretKey);</textarea>
+                    </div>
+                    <h6>Request</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="6" disabled="">curl --location --request POST 'https://pay4game.ru/api/v1/payment/create?method=sbp&amp;invoice_id=10021&amp;amount=100.50&amp;email=client%40mail.ru&amp;client_ip=123.456.78.90&amp;return_url=https://site.ru/return_url' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--header 'X-REQUEST-SIGNATURE: 71bcff81576c10edd53e4be7e1af6...' \
+--header 'Authorization: Bearer fycXw2qjrRlyfMd9tQ...'</textarea>
+                    </div>
+                    <h6>Response 200</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="6" disabled="">{
+"success": true,
+"uuid": "4be0c48b-817a-4b93-a4ce-48f5d654617c",
+"url": "https://pay4game.ru/invoice/4be0c48b-817a-4b93-a4ce-48f5d654617c",
+"agent_transaction_id": "175241581032"
+}</textarea>
+                    </div>
+                    <h6>Response 4xx</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="3" disabled="">{
+"message": "Access denied"
+}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th>Код ответа</th>
+                                    <th>Ключ ошибки</th>
+                                    <th>Описание ошибки</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>401</td>
+                                    <td>Unauthenticated</td>
+                                    <td>Неверный API Токен</td>
+                                </tr>
+                                <tr>
+                                    <td>403</td>
+                                    <td>Access denied</td>
+                                    <td>Доступ запрещен</td>
+                                </tr>
+                                <tr>
+                                    <td>422</td>
+                                    <td></td>
+                                    <td>Ошибка входных данных</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <h4>Получить статус платежа</h4>
+                <div class="mb-4">
+                    <h4><span class="badge badge-success">POST</span> payment/status</h4>
+                    <div class="mb-3">
+                        <input type="text" class="form__input" value="https://pay4game.ru/api/v1/payment/status" disabled="">
+                    </div>
+                    <h6>Параметры запроса</h6>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th>Тег</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>invoice_id</td>
+                                    <td>string</td>
+                                    <td>Идентификатор заказа</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <blockquote>
+                        <p>Если вместе с оплатой выполнялось пополнение баланса Steam, то в ответе придут дополнительные параметры: agent_transaction_id, steam_status, steam_account, steam_amount</p>
+                    </blockquote>
+                    <h6>Request</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="4" disabled="">curl --location --request POST 'https://pay4game.ru/api/v1/payment/status?invoice_id=15ca426e-df6c-445f-8291-c172ffa8c251' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer fycXw2qjrRlyfMd9tQ...'</textarea>
+                    </div>
+                    <h6>Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="12" disabled="">{
+    "invoice_id": "15ca426e-df6c-445f-8291-c172ffa8c251",
+    "uuid": "191e120c-d4c1-42fe-8cb3-74169c421091",
+    "amount": "31.50",
+    "status": "success",
+    "hold": 0,
+    "agent_transaction_id": "175115125736864",
+    "steam_status": "success",
+    "steam_account": "test",
+    "steam_amount": "30.00",
+    "signature": "7bba6592310ec24977fe44993d14c11493e3b082ad6c1d0dad74c00bf94f442e"
+}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <h6>Статусы платежа (status)</h6>
+                            <table class="table table-striped table-hover table-sm">
+                                <tbody>
+                                <tr>
+                                    <td>pending</td>
+                                    <td>в обработке или HOLD</td>
+                                </tr>
+                                <tr>
+                                    <td>success</td>
+                                    <td>оплата прошла успешно</td>
+                                </tr>
+                                <tr>
+                                    <td>error</td>
+                                    <td>оплата не прошла из-за ошибки</td>
+                                </tr>
+                                <tr>
+                                    <td>declined</td>
+                                    <td>оплата не прошла из-за ошибки</td>
+                                </tr>
+                                <tr>
+                                    <td>refunded</td>
+                                    <td>возврат прошел успешно</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="accordion">Создание выплаты</button>
+            <div class="accordion-panel">
+                <div class="accordion-panel--content mb-4">
+                    <h4>Создание выплаты</h4>
+                    <p>1. Отправьте запрос на проведение выплаты с помощью метода <span class="badge badge-secondary">payout/create</span>.</p>
+                    <p>2. Дождитесь вебхука <span class="badge badge-secondary">status_payoff</span> с результатом проведения выплаты. Статус <span class="badge badge-secondary">success</span> сообщает вам, что выплаты успешно проведена.</p>
+                    <blockquote>
+                        <ul class="mb-0">
+                            <li>Обязательно проверяйте подпись запроса.</li>
+                        </ul>
+                    </blockquote>
+                </div>
+
+                <div class="mb-4">
+                    <h4><span class="badge badge-success">POST</span> payout/create</h4>
+                    <div class="mb-3">
+                        <input type="text" class="form__input" value="https://pay4game.ru/api/v1/payout/create" disabled="">
+                    </div>
+                    <h6>Параметры запроса</h6>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th>Тег</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>method</td>
+                                    <td>string</td>
+                                    <td>Способ выплаты (sbp, card)</td>
+                                </tr>
+                                <tr>
+                                    <td>invoice_id</td>
+                                    <td>string</td>
+                                    <td>Идентификатор выплаты</td>
+                                </tr>
+                                <tr>
+                                    <td>amount</td>
+                                    <td>decimal</td>
+                                    <td>Сумма выплаты</td>
+                                </tr>
+                                <tr>
+                                    <td>phone</td>
+                                    <td>string</td>
+                                    <td>Номер телефона получателя (только для sbp)</td>
+                                </tr>
+                                <tr>
+                                    <td>bank_id</td>
+                                    <td>string</td>
+                                    <td>Банк из списка <span class="badge badge-secondary">payout/fps/banks</span> (только для sbp)</td>
+                                </tr>
+                                <tr>
+                                    <td>card_number</td>
+                                    <td>string</td>
+                                    <td>Номер карты получателя (только для card)</td>
+                                </tr>
+                                <tr>
+                                    <td>full_name</td>
+                                    <td>string</td>
+                                    <td>Полное имя получателя (только для card)</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Подпись запроса</h6>
+                    <p>Для формирование подписи необходимо использовать следующие данные:</p>
+                    <p> - sbp: "Идентификатор заказа:Сумма заказа:Номер телефона получателя" (разделены символом ":")</p>
+                    <p> - card: "Идентификатор заказа:Сумма заказа:Номер карты получателя" (разделены символом ":")</p>
+                    <p>Вычисляется HMAC по алгоритму SHA256. <b>Секретный ключ</b> можно получить на странице <a href="https://pay4game.ru/admin/setting">Настройки</a>.</p>
+                    <p>Подпись необходимо передать в заголовке <span class="badge badge-secondary">X-REQUEST-SIGNATURE</span></p>
+                    <h6>Пример кода</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="3" disabled="">$secretKey = 'F9s57vYDzuZIbrXtF42wSHpWbsfJBJeiCHngFn75wKXc5...';
+$data = "{$invoice_id}:{$amount}:{$card_number}";
+$signature = hash_hmac("sha256", $data, $secretKey);</textarea>
+                    </div>
+                    <h6>Request</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="6" disabled="">curl --location --request POST 'https://pay4game.ru/api/v1/payout/create?method=card&amp;invoice_id=10021&amp;amount=100.50&amp;card_number=120080081244&amp;full_name=Иванов' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--header 'X-REQUEST-SIGNATURE: 71bcff81576c10edd53e4be7e1af6...' \
+--header 'Authorization: Bearer fycXw2qjrRlyfMd9tQ...'</textarea>
+                    </div>
+                    <h6>Response 200</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="4" disabled="">{
+"success": true,
+"message": "Запрос на выплату отправлен, ожидайте финальный статус",
+}</textarea>
+                    </div>
+                    <h6>Response 4xx</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="3" disabled="">{
+"message": "Access denied"
+}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th>Код ответа</th>
+                                    <th>Ключ ошибки</th>
+                                    <th>Описание ошибки</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>401</td>
+                                    <td>Unauthenticated</td>
+                                    <td>Неверный API Токен</td>
+                                </tr>
+                                <tr>
+                                    <td>403</td>
+                                    <td>Access denied</td>
+                                    <td>Доступ запрещен</td>
+                                </tr>
+                                <tr>
+                                    <td>422</td>
+                                    <td></td>
+                                    <td>Ошибка входных данных</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            
+
+            
+
+            <button class="accordion">Пополнение Steam</button>
+            <div class="accordion-panel">
+                <div class="accordion-panel--content mb-4">
+                    <h4>Пополнение Steam</h4>
+                </div>
+                <div class="mb-4">
+                    <h4>Проверка возможности проведения платежа</h4>
+                    <p>С помощью этого запроса можно проверить, возможно ли оплатить данную услугу.</p>
+                    <h4><span class="badge badge-success">POST</span> steam/topup/check</h4>
+                    <div class="mb-3">
+                        <input type="text" class="form__input" value="https://pay4game.ru/api/v2/steam/topup/check" disabled="">
+                    </div>
+                    <h6>Параметры запроса</h6>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th>Тег</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>account</td>
+                                    <td>string</td>
+                                    <td>Логин Steam</td>
+                                </tr>
+                                <tr>
+                                    <td>amount</td>
+                                    <td>float</td>
+                                    <td>Сумма пополнения баланса (мин.: 20 руб., макс.: 50000 руб.)</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Example Request</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="2" disabled="">curl --location --request POST 'https://pay4game.ru/api/v2/steam/topup/check?account=anariox&amp;amount=20' \
+--header 'Accept: application/json'</textarea>
+                    </div>
+                    <h6>Example Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="5" disabled="">{
+"account": "anariox",
+"amount": 20,
+"status": "0",
+}</textarea>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h4>Проверка и проведение платежа</h4>
+                    <p>Данный метод используется для того, чтобы провести реальную транзакцию. По результату пополнения отправляется вебхук <span class="badge badge-secondary">status_topup</span> (см. в разделе Вебхуки). Статус также можно запросить с помощью метода <span class="badge badge-secondary">get_status</span></p>
+                    <h4><span class="badge badge-success">POST</span> steam/topup/check_pay</h4>
+                    <div class="mb-3">
+                        <input type="text" class="form__input" value="https://pay4game.ru/api/v2/steam/topup/check_pay" disabled="">
+                    </div>
+                    <h6>Параметры запроса</h6>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th>Тег</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>account</td>
+                                    <td>string</td>
+                                    <td>Логин Steam</td>
+                                </tr>
+                                <tr>
+                                    <td>amount</td>
+                                    <td>float</td>
+                                    <td>Сумма пополнения баланса (мин.: 20 руб., макс.: 50000 руб.)</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Example Request</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="2" disabled="">curl --location --request POST 'https://pay4game.ru/api/v2/steam/topup/check_pay?account=anariox&amp;amount=20' \
+--header 'Accept: application/json'</textarea>
+                    </div>
+                    <h6>Example Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="5" disabled="">{
+"message": "Transaction in processing",
+"status": "1",
+"agent_transaction_id": "17701843151184357"
+}</textarea>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h4>Получение статуса</h4>
+                    <p>Данный метод используется для получения статуса платежа</p>
+                    <h4><span class="badge badge-success">POST</span> steam/topup/get_status</h4>
+                    <div class="mb-3">
+                        <input type="text" class="form__input" value="https://pay4game.ru/api/v2/steam/topup/get_status" disabled="">
+                    </div>
+                    <h6>Параметры запроса</h6>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th>Тег</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>agent_transaction_id</td>
+                                    <td>string</td>
+                                    <td>Идентификационный номер транзакции на стороне Агента</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Example Request</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="2" disabled="">curl --location --request POST 'https://pay4game.ru/api/v2/steam/topup/get_status?agent_transaction_id=17701843151184357' \
+--header 'Accept: application/json'</textarea>
+                    </div>
+                    <h6>Example Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="7" disabled="">{
+"account": "anariox",
+"amount": "20",
+"status": "0",
+"agent_transaction_id": "17701821521184332",
+"signature": "ad0b49db2fe2743f56d84450a135ad7ed120dd5818fd08efcea62650d5f21b3f"
+}</textarea>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h4>Проверка баланса</h4>
+                    <h4><span class="badge badge-success">POST</span> steam/topup/balance</h4>
+                    <div class="mb-3">
+                        <input type="text" class="form__input" value="https://pay4game.ru/api/v2/steam/topup/balance" disabled="">
+                    </div>
+                    <h6>Example Request</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="2" disabled="">curl --location --request POST 'https://pay4game.ru/api/v2/steam/topup/balance' \
+--header 'Accept: application/json'</textarea>
+                    </div>
+                    <h6>Example Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="3" disabled="">{
+"balance": 1001.51
+}</textarea>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-xl-6">
+                        <h4>Коды ответов</h4>
+                        <table class="table table-striped table-hover table-sm">
+                            <thead>
+                            <tr>
+                                <th>Код ответа</th>
+                                <th>Описание</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>0</td>
+                                <td>Success</td>
+                            </tr>
+                            <tr>
+                                <td>1</td>
+                                <td>In processing</td>
+                            </tr>
+                            <tr>
+                                <td>-105</td>
+                                <td>Amount is less from minimum</td>
+                            </tr>
+                            <tr>
+                                <td>-106</td>
+                                <td>Amount is greater from maximum</td>
+                            </tr>
+                            <tr>
+                                <td>-108</td>
+                                <td>Transaction is not success</td>
+                            </tr>
+                            <tr>
+                                <td>-110</td>
+                                <td>Account not found</td>
+                            </tr>
+                            <tr>
+                                <td>-999</td>
+                                <td>Other error</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-xl-6">
+                        <h4>Возможные ошибки</h4>
+                        <table class="table table-striped table-hover table-sm">
+                            <thead>
+                            <tr>
+                                <th>Код ответа</th>
+                                <th>Ключ ошибки</th>
+                                <th>Описание ошибки</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>401</td>
+                                <td>Unauthenticated</td>
+                                <td>Неверный API Токен</td>
+                            </tr>
+                            <tr>
+                                <td>403</td>
+                                <td>Access denied</td>
+                                <td>Доступ запрещен</td>
+                            </tr>
+                            <tr>
+                                <td>422</td>
+                                <td></td>
+                                <td>Ошибка входных данных</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <button class="accordion">Вебхуки</button>
+            <div class="accordion-panel">
+                <div class="accordion-panel--content mb-4">
+                    <h4>Вебхуки</h4>
+                    <h5>Как получать вебхуки</h5>
+                    <p>1. В вашей системе создайте адрес, на который хотите получать вебхуки.</p>
+                    <p>2. Пропишите его на странице <a href="https://pay4game.ru/admin/setting">Настройки</a>.</p>
+                    <h5>Что отправлять в ответ</h5>
+                    <p>В ответ на любой вебхук необходимо отправить HTTP-код 200.</p>
+                    <p>Если в ответ pay4game получит код 4** или 5**, то будет отправлять запрос через увеличивающийся промежуток времени, пока не получит ответ.</p>
+                    <h5>Проверка подписи</h5>
+                    <p>Для формирование подписи необходимо использовать данные из тела запроса. Вычисляется HMAC по алгоритму SHA256. <b>Секретный ключ</b> можно получить на странице <a href="https://pay4game.ru/admin/setting">Настройки</a>.</p>
+                    <p>Полученную подпись необходимо сравнить с переданной в заголовке <span class="badge badge-secondary">X-REQUEST-SIGNATURE</span></p>
+
+                    <h6>Пример кода</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="9" disabled="">$data = file_get_contents('php://input');
+$headers = getallheaders();
+
+$secretKey = 'F9s57vYDzuZIbrXtF42wSHpWbsfJBJeiCHngFn75wKXc5...';
+$signature = hash_hmac("sha256", $data, $secretKey);
+
+if ($headers['X-REQUEST-SIGNATURE'] != $signature) {
+die('bad sign');
+}</textarea>
+                    </div>
+
+                    <h5><span class="badge">inform</span></h5>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th><strong>name</strong></th>
+                                    <th><strong>type</strong></th>
+                                    <th><strong>description</strong></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>type</td>
+                                    <td>string</td>
+                                    <td>Тип вебхука</td>
+                                </tr>
+                                <tr>
+                                    <td>invoice_id</td>
+                                    <td>string</td>
+                                    <td>Идентификатор заказа</td>
+                                </tr>
+                                <tr>
+                                    <td>uuid</td>
+                                    <td>uuid</td>
+                                    <td>Номер счета</td>
+                                </tr>
+                                <tr>
+                                    <td>qr</td>
+                                    <td>array</td>
+                                    <td>Информация для отрисовки QR-кода</td>
+                                </tr>
+                                <tr>
+                                    <td>qr.content</td>
+                                    <td>string</td>
+                                    <td>Ссылка на оплату</td>
+                                </tr>
+                                <tr>
+                                    <td>qr.img</td>
+                                    <td>string</td>
+                                    <td>Изображение</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="11" disabled="">{
+"type": "inform",
+"invoice_id": "1212"
+"uuid": "78e1eb73-c5af-45f1-81c4-d570f41eb34d"
+"qr": {
+"content": "https://qr.nspk.ru/AD1000269CKIK8M09C1RB40LB7QAM8IH?type=02&amp;bank=100000000143&amp;sum=1000&amp;cur=RUB&amp;crc=C900",
+"img": "iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAATw0lEQVR42u3deXBURR7Acba2at3aqt2tPRRh5dBFWBQUWFYBCVqIS4mCuF5EQiGHohw..."
+}
+}</textarea>
+                    </div>
+
+                    <h5><span class="badge">status</span></h5>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th><strong>name</strong></th>
+                                    <th><strong>type</strong></th>
+                                    <th><strong>description</strong></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>type</td>
+                                    <td>string</td>
+                                    <td>Тип вебхука</td>
+                                </tr>
+                                <tr>
+                                    <td>invoice_id</td>
+                                    <td>string</td>
+                                    <td>Идентификатор заказа</td>
+                                </tr>
+                                <tr>
+                                    <td>uuid</td>
+                                    <td>uuid</td>
+                                    <td>Номер счета</td>
+                                </tr>
+                                <tr>
+                                    <td>amount</td>
+                                    <td>decimal</td>
+                                    <td>Сумма заказа</td>
+                                </tr>
+                                <tr>
+                                    <td>status</td>
+                                    <td>string</td>
+                                    <td>Статус заказа (pending, success, error, declined, refunded)</td>
+                                </tr>
+                                <tr>
+                                    <td>hold</td>
+                                    <td>integer</td>
+                                    <td>Блокировка заказа</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <h6>Статусы платежа (status)</h6>
+                            <table class="table table-striped table-hover table-sm">
+                                <tbody>
+                                <tr>
+                                    <td>pending</td>
+                                    <td>в обработке или HOLD</td>
+                                </tr>
+                                <tr>
+                                    <td>success</td>
+                                    <td>оплата прошла успешно</td>
+                                </tr>
+                                <tr>
+                                    <td>error</td>
+                                    <td>оплата не прошла из-за ошибки</td>
+                                </tr>
+                                <tr>
+                                    <td>declined</td>
+                                    <td>оплата не прошла из-за ошибки</td>
+                                </tr>
+                                <tr>
+                                    <td>refunded</td>
+                                    <td>возврат прошел успешно</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="8" disabled="">{
+"type": "status",
+"invoice_id": "1212"
+"uuid": "78e1eb73-c5af-45f1-81c4-d570f41eb34d"
+"amount": 1581.50,
+"status": "success",
+"hold": 0
+}</textarea>
+                    </div>
+                    <blockquote>
+                        <p>Перед выдачей заказа обязательно проверяйте параметр hold:</p>
+                        <ul>
+                            <li>если hold = 0 - платеж прошел успешно и заказ можно выдавать.</li>
+                            <li>если hold = 1 - платеж прошел успешно, но заблокирован сервисом для проверки Администратором. После проверки будет повторно отправлен вебхук.</li>
+                        </ul>
+                    </blockquote>
+
+                    <h5><span class="badge">status_steam</span></h5>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th><strong>name</strong></th>
+                                    <th><strong>type</strong></th>
+                                    <th><strong>description</strong></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>type</td>
+                                    <td>string</td>
+                                    <td>Тип вебхука</td>
+                                </tr>
+                                <tr>
+                                    <td>invoice_id</td>
+                                    <td>string</td>
+                                    <td>Идентификатор заказа</td>
+                                </tr>
+                                <tr>
+                                    <td>uuid</td>
+                                    <td>uuid</td>
+                                    <td>Номер счета</td>
+                                </tr>
+                                <tr>
+                                    <td>amount</td>
+                                    <td>decimal</td>
+                                    <td>Сумма заказа</td>
+                                </tr>
+                                <tr>
+                                    <td>status</td>
+                                    <td>string</td>
+                                    <td>Статус пополнения (pending, success, error)</td>
+                                </tr>
+                                <tr>
+                                    <td>agent_transaction_id</td>
+                                    <td>string</td>
+                                    <td>Идентификационный номер транзакции на стороне Агента</td>
+                                </tr>
+                                <tr>
+                                    <td>steam_account</td>
+                                    <td>string</td>
+                                    <td>Логин Steam</td>
+                                </tr>
+                                <tr>
+                                    <td>steam_amount</td>
+                                    <td>decimal</td>
+                                    <td>Сумма пополнения Steam</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <h6>Статусы пополнения Steam (status)</h6>
+                            <table class="table table-striped table-hover table-sm">
+                                <tbody>
+                                <tr>
+                                    <td>pending</td>
+                                    <td>в обработке</td>
+                                </tr>
+                                <tr>
+                                    <td>success</td>
+                                    <td>пополнение прошло успешно</td>
+                                </tr>
+                                <tr>
+                                    <td>error</td>
+                                    <td>пополнение не прошло из-за ошибки</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="10" disabled="">{
+"type": "status_steam",
+"invoice_id": "1212"
+"uuid": "78e1eb73-c5af-45f1-81c4-d570f41eb34d"
+"amount": 1581.50,
+"status": "success",
+"agent_transaction_id": "175246754235",
+"steam_account": "test",
+"steam_amount": 100,
+}</textarea>
+                    </div>
+
+                    <h5><span class="badge">status_payoff</span></h5>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th><strong>name</strong></th>
+                                    <th><strong>type</strong></th>
+                                    <th><strong>description</strong></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>type</td>
+                                    <td>string</td>
+                                    <td>Тип вебхука</td>
+                                </tr>
+                                <tr>
+                                    <td>invoice_id</td>
+                                    <td>string</td>
+                                    <td>Идентификатор выплаты</td>
+                                </tr>
+                                <tr>
+                                    <td>amount</td>
+                                    <td>decimal</td>
+                                    <td>Сумма выплаты</td>
+                                </tr>
+                                <tr>
+                                    <td>status</td>
+                                    <td>string</td>
+                                    <td>Статус выплаты (pending, success, error, declined)</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <h6>Статусы выплаты (status)</h6>
+                            <table class="table table-striped table-hover table-sm">
+                                <tbody>
+                                <tr>
+                                    <td>pending</td>
+                                    <td>в обработке</td>
+                                </tr>
+                                <tr>
+                                    <td>success</td>
+                                    <td>выплата прошла успешно</td>
+                                </tr>
+                                <tr>
+                                    <td>error</td>
+                                    <td>выплата не прошла из-за ошибки</td>
+                                </tr>
+                                <tr>
+                                    <td>declined</td>
+                                    <td>выплата не прошла из-за ошибки</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="6" disabled="">{
+"type": "status_payoff",
+"invoice_id": "1212"
+"amount": 1581.50,
+"status": "success",
+}</textarea>
+                    </div>
+
+                    <h5><span class="badge">status_topup</span></h5>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead>
+                                <tr>
+                                    <th><strong>name</strong></th>
+                                    <th><strong>type</strong></th>
+                                    <th><strong>description</strong></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>type</td>
+                                    <td>string</td>
+                                    <td>Тип вебхука</td>
+                                </tr>
+                                <tr>
+                                    <td>account</td>
+                                    <td>string</td>
+                                    <td>Логин</td>
+                                </tr>
+                                <tr>
+                                    <td>amount</td>
+                                    <td>decimal</td>
+                                    <td>Сумма пополнения</td>
+                                </tr>
+                                <tr>
+                                    <td>status</td>
+                                    <td>string</td>
+                                    <td>Статус</td>
+                                </tr>
+                                <tr>
+                                    <td>agent_transaction_id</td>
+                                    <td>string</td>
+                                    <td>Идентификационный номер транзакции на стороне Агента</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-xl-6">
+                            <h6>Статусы пополнения Steam (status)</h6>
+                            <table class="table table-striped table-hover table-sm">
+                                <tbody><tr>
+                                    <td>0</td>
+                                    <td>Success</td>
+                                </tr>
+                                <tr>
+                                    <td>1</td>
+                                    <td>In processing</td>
+                                </tr>
+                                <tr>
+                                    <td>-105</td>
+                                    <td>Amount is less from minimum</td>
+                                </tr>
+                                <tr>
+                                    <td>-106</td>
+                                    <td>Amount is greater from maximum</td>
+                                </tr>
+                                <tr>
+                                    <td>-108</td>
+                                    <td>Transaction is not success</td>
+                                </tr>
+                                <tr>
+                                    <td>-110</td>
+                                    <td>Account not found</td>
+                                </tr>
+                                <tr>
+                                    <td>-999</td>
+                                    <td>Other error</td>
+                                </tr>
+                            </tbody></table>
+                        </div>
+                    </div>
+                    <h6>Response</h6>
+                    <div class="form-group">
+<textarea class="form__input" rows="7" disabled="">{
+"type": "status_topup",
+"account": "test",
+"amount": 20.00,
+"status": 0,
+"agent_transaction_id": "175246754235"
+}</textarea>
+                    </div>
+                    <blockquote>
+                        <p>Вебхук status_topup отправляется только при пополнении методом check_pay (Пополнение Steam)</p>
+                    </blockquote>
+                </div>
+            </div>
+        </div>
+    </section>
+                </div>
+                <img src="./Панель управления_files/ellipse.svg" alt="alt" class="ellipse">
+            </div>
+            <footer class="footer">
+                <div class="footer__copyright">Pay4game © 2024</div>
+                <div class="footer__version">Version 1.0</div>
+            </footer>
+        </main>
+    
+        <script type="text/javascript" src="./Панель управления_files/svg4everybody.min.js.загрузка" async="" onload="svg4everybody();"></script>
+        <script src="./Панель управления_files/fstdropdown.min.js.загрузка"></script>
+        <script src="./Панель управления_files/theme-switcher.js.загрузка"></script>
+        <script src="./Панель управления_files/common.js.загрузка"></script>
+
+        <script src="./Панель управления_files/jquery.min.js.загрузка"></script>
+        <script src="./Панель управления_files/moment.min.js.загрузка"></script>
+        <script src="./Панель управления_files/jquery.inputmask.min.js.загрузка"></script>
+        <script src="./Панель управления_files/daterangepicker.js.загрузка"></script>
+        <script src="./Панель управления_files/bootstrap-datetimepicker.min.js.загрузка"></script>
+        <script src="./Панель управления_files/toastr.min.js.загрузка"></script>
+        <script src="./Панель управления_files/select2.full.min.js.загрузка"></script>
+        <script src="./Панель управления_files/jquery-ui.js.загрузка"></script>
+        <script src="./Панель управления_files/jquery.form.min.js.загрузка" crossorigin="anonymous"></script>
+        <script src="./Панель управления_files/admin.js.загрузка"></script>
+        <script src="./Панель управления_files/lang.js.загрузка"></script>
+            <script>
+        var acc = document.getElementsByClassName("accordion");
+        var i;
+
+        for (i = 0; i < acc.length; i++) {
+          acc[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var panel = this.nextElementSibling;
+            if (panel.style.maxHeight) {
+              panel.style.maxHeight = null;
+            } else {
+              panel.style.maxHeight = panel.scrollHeight + "px";
+            }
+          });
+        }
+    </script>
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</body></html>

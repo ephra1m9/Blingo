@@ -5,11 +5,11 @@ import re
 STEAM_LOGIN_RE = re.compile(r'^[a-zA-Z0-9_]{2,32}$')
 
 # Минимальный платёж
-MIN_AMOUNT = 10
+MIN_AMOUNT = 20
 # Максимальный платёж
 MAX_AMOUNT = 15_000
 # Комиссия в процентах (целое число, например 10 = 10%)
-COMMISSION = 10
+COMMISSION = 3
 
 # Статусы заказа
 ORDER_STATUS = {
@@ -19,8 +19,13 @@ ORDER_STATUS = {
     "3": "Отменён"
 }
 
-# Dessly API
-DESSLY_API_KEY: str = os.getenv("DESSLY_API_KEY", "")
+# Pay4Game API
+PAYFORGAME_API_KEY: str = os.getenv("PAYFORGAME_API_KEY", "")
+PAYFORGAME_SECRET: str = os.getenv("PAYFORGAME_SECRET", "")
+PAY4GAME_RETURN_URL: str = os.getenv("PAY4GAME_RETURN_URL", "")
+
+# Секретный ключ для API-запросов от сайта
+BOT_SECRET_KEY: str = os.getenv("BOT_SECRET_KEY", "")
 
 # Порт для webhook-сервера
 WEBHOOK_PORT: int = int(os.getenv("WEBHOOK_PORT", "8080"))

@@ -1,29 +1,48 @@
-import os
+import hmac
 import hashlib
+import json
 import logging
 
 from aiohttp import web
 from aiogram import Bot
 
-from .dessly.steam_top_up import get_usd_rate, rub_to_usd, steam_topup, is_success
-from .dessly.get_transaction_status import get_status_label
-from .db.db_helper import get_order, update_order_after_payment
-from .config import COMMISSION
+from .db.db_helper import (
+    get_order,
+    update_order_after_payment,
+    update_steam_status,
+    get_order_by_agent_transaction_id,
+    get_payment_message_id,
+)
+from .config import COMMISSION, PAYFORGAME_SECRET, BOT_SECRET_KEY
 from .webhook_throttling import WebhookThrottlingMiddleware
 
 
 logger = logging.getLogger(__name__)
 
-FREEKASSA_SECRET2 = os.getenv("FREEKASSA_SECRET2")
+
+async def _safe_delete_message(bot: Bot, chat_id: int, message_id: int) -> None:
+    """Безопасно удаляет сообщение, игнорируя ошибки."""
+    try:
+        await bot.delete_message(chat_id, message_id)
+    except Exception as e:
+        logger.debug(f"Не удалось удалить сообщение {message_id} в чате {chat_id}: {e}")
 
 # Экземпляр throttling-middleware для вебхука:
 # не более 10 запросов с одного IP за 60 секунд
 _webhook_throttler = WebhookThrottlingMiddleware(max_calls=10, window_seconds=60.0)
 
+# Статусы пополнения Steam для отображения пользователю
+STEAM_STATUS_LABELS = {
+    "pending": "⏳ В обработке",
+    "success": "✅ Выполнено",
+    "error":   "❌ Ошибка",
+}
+
 
 def create_webhook_app(bot: Bot) -> web.Application:
     """
-    Создаёт aiohttp-приложение для обработки IPN-уведомлений от FreeKassa.
+    Создаёт aiohttp-приложение для обработки вебхуков от Pay4Game
+    и API-запросов от сайта.
 
     Args:
         bot: Экземпляр aiogram Bot для отправки уведомлений пользователям.
@@ -33,193 +52,241 @@ def create_webhook_app(bot: Bot) -> web.Application:
     """
     app = web.Application(middlewares=[_webhook_throttler.middleware])
     app["bot"] = bot
-    app.router.add_post("/webhook/freekassa", handle_freekassa_ipn)
+    app.router.add_post("/webhook/pay4game", handle_pay4game_webhook)
+    app.router.add_post("/src/api/bot_steam_status.php", handle_site_status_request)
     return app
 
 
-def _verify_sign(shop_id: str, amount: str, order_id: str, secret2: str, received_sign: str) -> bool:
+def _verify_signature(raw_body: bytes, secret: str, received_sign: str) -> bool:
     """
-    Проверяет подпись IPN-уведомления от FreeKassa.
-    Формат: MD5(shop_id:amount:secret2:order_id)
+    Проверяет HMAC-SHA256 подпись вебхука от Pay4Game.
+    Подпись вычисляется от сырого тела запроса.
     """
-    raw = f"{shop_id}:{amount}:{secret2}:{order_id}"
-    expected = hashlib.md5(raw.encode("utf-8")).hexdigest()
-    return expected == received_sign
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, received_sign)
 
 
-async def handle_freekassa_ipn(request: web.Request) -> web.Response:
+async def handle_pay4game_webhook(request: web.Request) -> web.Response:
     """
-    Обрабатывает IPN-уведомление от FreeKassa об успешной оплате.
+    Обрабатывает вебхуки от Pay4Game.
 
-    FreeKassa отправляет POST с параметрами:
-        MERCHANT_ID        — ID магазина
-        AMOUNT             — сумма платежа
-        MERCHANT_ORDER_ID  — числовой order_id из таблицы orders_history
-        SIGN               — подпись MD5(MERCHANT_ID:AMOUNT:SECRET2:MERCHANT_ORDER_ID)
-        intid              — внутренний ID транзакции FreeKassa
-        P_EMAIL            — email плательщика (опционально)
-        CUR_ID             — валюта
+    Типы вебхуков:
+        status       — результат проведения платежа
+        status_steam — результат пополнения Steam
     """
     bot: Bot = request.app["bot"]
 
+    # Читаем сырое тело для верификации подписи
     try:
-        data = await request.post()
+        raw_body = await request.read()
     except Exception as e:
-        logger.error(f"Ошибка чтения IPN от FreeKassa: {e}")
+        logger.error(f"Ошибка чтения тела вебхука Pay4Game: {e}")
         return web.Response(status=400, text="Bad Request")
 
-    # Логируем ВСЕ параметры для отладки
-    logger.info(f"IPN FreeKassa RAW params: {dict(data)}")
+    # Верифицируем подпись
+    received_sign = request.headers.get("X-REQUEST-SIGNATURE", "")
+    if not PAYFORGAME_SECRET:
+        logger.error("PAYFORGAME_SECRET не задан — верификация невозможна")
+        return web.Response(status=500, text="Server Error")
 
-    # FreeKassa отправляет status_check=1 для проверки доступности URL
-    if data.get("status_check") == "1":
-        logger.info("FreeKassa status_check: отвечаем YES")
-        return web.Response(status=200, text="YES")
+    if not _verify_signature(raw_body, PAYFORGAME_SECRET, received_sign):
+        logger.warning(f"Неверная подпись вебхука Pay4Game: sign={received_sign[:20]}...")
+        return web.Response(status=403, text="Invalid signature")
 
-    shop_id = data.get("MERCHANT_ID", "")
-    amount = data.get("AMOUNT", "")
-    order_id_str = data.get("MERCHANT_ORDER_ID", "")
-    received_sign = data.get("SIGN", "")
-
-    logger.info(
-        f"IPN FreeKassa: shop_id={shop_id}, amount={amount}, "
-        f"order_id={order_id_str}, sign={received_sign}"
-    )
-
-    # Проверяем подпись
-    if not _verify_sign(shop_id, amount, order_id_str, FREEKASSA_SECRET2, received_sign):
-        logger.warning(f"Неверная подпись IPN FreeKassa: order_id={order_id_str}")
-        return web.Response(status=403, text="Invalid sign")
-
-    # Получаем данные заказа из БД
+    # Парсим JSON
     try:
-        order_id = int(order_id_str)
-    except ValueError:
-        logger.error(f"Неверный формат order_id: {order_id_str}")
-        return web.Response(status=200, text="YES")
+        data = json.loads(raw_body)
+    except json.JSONDecodeError as e:
+        logger.error(f"Вебхук Pay4Game: не JSON: {e} | raw={raw_body[:200]}")
+        return web.Response(status=400, text="Bad Request")
 
+    webhook_type = data.get("type", "")
+    logger.info(f"Вебхук Pay4Game type={webhook_type}: {json.dumps(data)[:300]}")
+
+    if webhook_type == "status":
+        await _handle_status_webhook(bot, data)
+    elif webhook_type == "status_steam":
+        await _handle_status_steam_webhook(bot, data)
+    else:
+        logger.info(f"Вебхук Pay4Game: неизвестный тип '{webhook_type}', игнорируем")
+
+    return web.Response(status=200, text="OK")
+
+
+async def _handle_status_webhook(bot: Bot, data: dict) -> None:
+    """
+    Обрабатывает вебхук type=status — результат проведения платежа.
+    Выдаёт заказ только при status=success и hold=0.
+    """
+    invoice_id: str = data.get("invoice_id", "")
+    status: str = data.get("status", "")
+    hold: int = int(data.get("hold", 1))
+    amount = data.get("amount")
+
+    logger.info(f"status webhook: invoice_id={invoice_id}, status={status}, hold={hold}")
+
+    # invoice_id совпадает с order_id (формат "b_{случайные_символы}")
+    order_id = invoice_id
+
+    if status == "success" and hold == 1:
+        logger.info(
+            f"status webhook: платёж hold=1 для order_id={order_id}, "
+            f"ожидаем повторный вебхук после проверки администратором"
+        )
+        return
+
+    if status != "success":
+        logger.info(f"status webhook: статус '{status}' для order_id={order_id}, пропускаем")
+        return
+
+    # status=success, hold=0 — обрабатываем платёж
     order = await get_order(order_id)
     if order is None:
-        logger.error(f"Заказ не найден в БД: order_id={order_id}")
-        return web.Response(status=200, text="YES")
+        logger.error(f"status webhook: заказ не найден в БД: order_id={order_id}")
+        return
 
-    # --- Защита от Race Condition (дублирующих IPN) ---
-    # FreeKassa может повторно отправить IPN при таймауте.
-    # Обрабатываем заказ только если он ещё в статусе "Создан".
+    # Защита от дублирующих вебхуков
     if order.status != "Создан":
         logger.warning(
-            f"IPN дубликат или повтор: order_id={order_id} уже в статусе '{order.status}'. "
-            f"Пропускаем вызов Dessly."
+            f"status webhook: дубликат для order_id={order_id}, "
+            f"статус уже '{order.status}', пропускаем"
         )
-        return web.Response(status=200, text="YES")
+        return
 
-    steam_login = order.steam_login
     user_id = order.user_id
+    steam_login = order.steam_login
     amount_rub = order.amount
 
-    # --- Сверка суммы из IPN с ожидаемой суммой из БД ---
-    # Ожидаемая сумма к оплате = сумма пополнения + комиссия
-    expected_amount = round(amount_rub * (1 + COMMISSION / 100), 2)
-    try:
-        ipn_amount = round(float(amount), 2)
-    except (ValueError, TypeError):
-        logger.error(f"Некорректный формат суммы в IPN: amount='{amount}', order_id={order_id}")
-        return web.Response(status=200, text="YES")
+    # Обновляем статус заказа в БД
+    await update_order_after_payment(order_id, status=1)
 
-    if abs(ipn_amount - expected_amount) > 0.01:
-        logger.error(
-            f"Несоответствие суммы IPN: получено {ipn_amount}, "
-            f"ожидалось {expected_amount} (order_id={order_id}, amount_rub={amount_rub})"
-        )
-        # Не отменяем заказ — возможно, ошибка округления на стороне FreeKassa.
-        # Логируем для ручной проверки, но продолжаем обработку.
-        # Если хотите жёсткую блокировку — раскомментируйте строки ниже:
-        # await _notify_error(bot, user_id, "Ошибка проверки суммы платежа. Обратитесь в поддержку.")
-        # return web.Response(status=200, text="YES")
+    # Удаляем сообщение с кнопками оплаты
+    payment_msg_id = await get_payment_message_id(order_id)
+    if payment_msg_id:
+        await _safe_delete_message(bot, user_id, payment_msg_id)
 
-    logger.info(
-        f"Обработка оплаты: user_id={user_id}, steam_login=***{steam_login[-3:]}, "
-        f"amount_rub={amount_rub}, ipn_amount={ipn_amount}"
-    )
-
-    # Уведомляем пользователя о начале обработки
+    # Уведомляем пользователя
     try:
         await bot.send_message(
             user_id,
-            "⏳ Оплата получена! Пополняем баланс Steam...",
-        )
-    except Exception as e:
-        logger.warning(f"Не удалось отправить сообщение пользователю {user_id}: {e}")
-
-    # Конвертируем RUB → USD через курс ЦБ РФ
-    try:
-        usd_rate = await get_usd_rate()
-        amount_usd = rub_to_usd(amount_rub, usd_rate)
-        logger.info(f"Конвертация: {amount_rub} RUB → {amount_usd} USD (курс {usd_rate})")
-    except Exception as e:
-        logger.error(f"Ошибка получения курса ЦБ РФ: {e}")
-        await update_order_after_payment(order_id, status=3)
-        await _notify_error(bot, user_id, "Не удалось получить курс валют. Обратитесь в поддержку.")
-        return web.Response(status=200, text="YES")
-
-    # Создаём заказ на пополнение Steam через Dessly
-    result = await steam_topup(
-        username=steam_login,
-        amount_usd=amount_usd,
-        reference=str(order_id),
-    )
-
-    status = result.get("status", "error")
-    transaction_id = result.get("transaction_id")
-
-    if is_success(result):
-        # Сохраняем статус "Оплачен" и transaction_id Dessly в БД
-        await update_order_after_payment(
-            order_id,
-            status=1,
-            dessly_order_id=str(transaction_id) if transaction_id is not None else None,
-        )
-
-        status_label = get_status_label(status)
-        try:
-            await bot.send_message(
-                user_id,
-                f"✅ <b>Заявка на пополнение отправлена!</b>\n\n"
-                f"🎮 Логин: <code>{steam_login}</code>\n"
-                f"💰 Сумма: <b>{amount_rub} руб.</b> (~{amount_usd} USD)\n"
-                f"🔖 ID транзакции: <code>{transaction_id or '—'}</code>\n"
-                f"📋 Статус: {status_label}\n\n"
-                f"Средства поступят на счёт в течение нескольких минут.",
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.warning(f"Не удалось отправить уведомление об успехе пользователю {user_id}: {e}")
-    else:
-        error_detail = result.get("error", "Неизвестная ошибка")
-        logger.error(
-            f"Ошибка Dessly: status={status}, error={error_detail}, "
-            f"user_id={user_id}, steam={steam_login}"
-        )
-        # Сохраняем статус "Отменён" в БД
-        await update_order_after_payment(order_id, status=3)
-        await _notify_error(
-            bot,
-            user_id,
-            f"Ошибка пополнения Steam: {error_detail}\n"
-            f"Обратитесь в поддержку с логином <code>{steam_login}</code>.",
-        )
-
-    # FreeKassa требует ответ "YES" для подтверждения получения уведомления
-    return web.Response(status=200, text="YES")
-
-
-async def _notify_error(bot: Bot, user_id: int, message: str) -> None:
-    """Отправляет пользователю сообщение об ошибке."""
-    try:
-        await bot.send_message(
-            user_id,
-            f"❌ <b>Ошибка!</b>\n\n{message}",
+            f"✅ <b>Оплата получена!</b>\n\n"
+            f"🎮 Логин Steam: <code>{steam_login}</code>\n"
+            f"💰 Сумма пополнения: <b>{amount_rub} руб.</b>\n\n"
+            f"Пополнение баланса Steam выполняется автоматически.\n"
+            f"Средства поступят на счёт в течение нескольких минут.",
             parse_mode="HTML",
         )
     except Exception as e:
-        logger.warning(f"Не удалось отправить сообщение об ошибке пользователю {user_id}: {e}")
+        logger.warning(f"Не удалось отправить уведомление об оплате пользователю {user_id}: {e}")
+
+
+async def _handle_status_steam_webhook(bot: Bot, data: dict) -> None:
+    """
+    Обрабатывает вебхук type=status_steam — результат пополнения Steam.
+    Сохраняет steam_status в БД и уведомляет пользователя.
+    """
+    agent_transaction_id: str = data.get("agent_transaction_id", "")
+    steam_status: str = data.get("status", "")
+    steam_account: str = data.get("steam_account", "")
+    steam_amount = data.get("steam_amount", "")
+    invoice_id: str = data.get("invoice_id", "")
+
+    logger.info(
+        f"status_steam webhook: agent_transaction_id={agent_transaction_id}, "
+        f"status={steam_status}, account={steam_account}"
+    )
+
+    if not agent_transaction_id:
+        logger.warning("status_steam webhook: отсутствует agent_transaction_id")
+        return
+
+    # Сохраняем steam_status в БД
+    await update_steam_status(agent_transaction_id, steam_status)
+
+    # Находим заказ для уведомления пользователя
+    order = await get_order_by_agent_transaction_id(agent_transaction_id)
+    if order is None:
+        logger.warning(f"status_steam webhook: заказ не найден для agent_transaction_id={agent_transaction_id}")
+        return
+
+    user_id = order.user_id
+    status_label = STEAM_STATUS_LABELS.get(steam_status, f"Статус: {steam_status}")
+
+    # Удаляем сообщение с кнопками оплаты
+    payment_msg_id = await get_payment_message_id(order.order_id)
+    if payment_msg_id:
+        await _safe_delete_message(bot, user_id, payment_msg_id)
+
+    if steam_status == "success":
+        try:
+            await bot.send_message(
+                user_id,
+                f"🎮 <b>Баланс Steam пополнен!</b>\n\n"
+                f"👤 Аккаунт: <code>{steam_account or order.steam_login}</code>\n"
+                f"💰 Сумма: <b>{steam_amount or order.amount} руб.</b>\n"
+                f"📋 Статус: {status_label}",
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось отправить уведомление о пополнении Steam пользователю {user_id}: {e}")
+    elif steam_status == "error":
+        try:
+            await bot.send_message(
+                user_id,
+                f"❌ <b>Ошибка пополнения Steam</b>\n\n"
+                f"👤 Аккаунт: <code>{steam_account or order.steam_login}</code>\n"
+                f"📋 Статус: {status_label}\n\n"
+                f"Обратитесь в поддержку.",
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось отправить уведомление об ошибке Steam пользователю {user_id}: {e}")
+
+
+async def handle_site_status_request(request: web.Request) -> web.Response:
+    """
+    Обрабатывает запрос от сайта kazna.shop на получение статуса транзакции.
+
+    Запрос:
+        POST /src/api/bot_steam_status.php
+        {"bot_token": "...", "agent_transaction_id": "..."}
+
+    Ответ при успехе:
+        {"found": true, "steam_account": "...", "steam_amount": 500,
+         "steam_status": "success", "status": "Оплачен"}
+
+    Ответ при ненайденном заказе:
+        {"found": false}
+    """
+    try:
+        data = await request.json()
+    except Exception as e:
+        logger.warning(f"bot_steam_status: ошибка чтения JSON: {e}")
+        return web.json_response({"error": "Bad Request"}, status=400)
+
+    # Проверяем токен
+    bot_token = data.get("bot_token", "")
+    if not BOT_SECRET_KEY or bot_token != BOT_SECRET_KEY:
+        logger.warning("bot_steam_status: неверный bot_token")
+        return web.json_response({"error": "Unauthorized"}, status=401)
+
+    agent_transaction_id = data.get("agent_transaction_id", "")
+    if not agent_transaction_id:
+        return web.json_response({"error": "agent_transaction_id required"}, status=400)
+
+    order = await get_order_by_agent_transaction_id(agent_transaction_id)
+    if order is None:
+        logger.info(f"bot_steam_status: заказ не найден для agent_transaction_id={agent_transaction_id}")
+        return web.json_response({"found": False})
+
+    return web.json_response({
+        "found": True,
+        "steam_account": order.steam_login,
+        "steam_amount": order.amount,
+        "steam_status": order.steam_status or "pending",
+        "status": order.status,
+    })

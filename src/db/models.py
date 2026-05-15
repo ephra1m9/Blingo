@@ -18,10 +18,13 @@ class UserInfo(SQLModel, table=True):
 class OrdersHistory(SQLModel, table=True):
     __tablename__ = "orders_history"
 
-    order_id: int = Field(primary_key=True)
+    order_id: str = Field(primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, index=True)
     user_id: int = Field(sa_column=Column(BigInteger()))
     steam_login: str = Field(default=None)
     amount: int = Field(default=None)
     status: str = Field(default="Создан")
-    dessly_order_id: Optional[str] = Field(default=None)
+    agent_transaction_id: Optional[str] = Field(default=None)
+    steam_status: Optional[str] = Field(default=None)
+    method: Optional[str] = Field(default=None)
+    payment_message_id: Optional[int] = Field(sa_column=Column(BigInteger(), default=None))
