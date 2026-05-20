@@ -116,19 +116,12 @@ async def change_order_status(order_id: str, status: int) -> bool:
             return False
 
 
-async def update_order_after_payment(
-    order_id: str,
-    status: int,
-    agent_transaction_id: str | None = None,
-) -> bool:
-    """
-    Обновить статус заказа и сохранить agent_transaction_id после обработки платежа.
-
+async def update_order_after_payment(order_id: str, status: int, agent_transaction_id: str | None = None,) -> bool:
+    """Обновить статус заказа и сохранить agent_transaction_id после обработки платежа.
     Args:
         order_id: ID заказа в нашей БД.
         status: Числовой код статуса из ORDER_STATUS (1 — Оплачен, 3 — Отменён).
         agent_transaction_id: ID транзакции в системе Pay4Game (если есть).
-
     Returns:
         True при успехе, False при ошибке.
     """
@@ -154,13 +147,10 @@ async def update_order_after_payment(
 
 
 async def update_order_agent_transaction_id(order_id: str, agent_transaction_id: str) -> bool:
-    """
-    Сохранить agent_transaction_id в заказе сразу после создания платежа в Pay4Game.
-
+    """Сохранить agent_transaction_id в заказе сразу после создания платежа в Pay4Game.
     Args:
         order_id: ID заказа в нашей БД.
         agent_transaction_id: ID транзакции Pay4Game.
-
     Returns:
         True при успехе, False при ошибке.
     """
@@ -181,13 +171,10 @@ async def update_order_agent_transaction_id(order_id: str, agent_transaction_id:
 
 
 async def update_steam_status(agent_transaction_id: str, steam_status: str) -> bool:
-    """
-    Обновить статус пополнения Steam по agent_transaction_id.
-
+    """Обновить статус пополнения Steam по agent_transaction_id.
     Args:
         agent_transaction_id: ID транзакции Pay4Game.
         steam_status: Статус пополнения Steam (pending, success, error).
-
     Returns:
         True при успехе, False при ошибке.
     """
@@ -215,13 +202,10 @@ async def update_steam_status(agent_transaction_id: str, steam_status: str) -> b
 
 
 async def save_payment_message_id(order_id: str, message_id: int) -> bool:
-    """
-    Сохранить message_id сообщения с кнопками оплаты в заказе.
-
+    """Сохранить message_id сообщения с кнопками оплаты в заказе.
     Args:
         order_id: ID заказа в нашей БД.
         message_id: Telegram message_id сообщения с кнопками оплаты.
-
     Returns:
         True при успехе, False при ошибке.
     """
@@ -242,12 +226,9 @@ async def save_payment_message_id(order_id: str, message_id: int) -> bool:
 
 
 async def get_payment_message_id(order_id: str) -> int | None:
-    """
-    Получить message_id сообщения с кнопками оплаты для удаления.
-
+    """Получить message_id сообщения с кнопками оплаты для удаления.
     Args:
         order_id: ID заказа в нашей БД.
-
     Returns:
         message_id или None, если заказ не найден или поле не задано.
     """

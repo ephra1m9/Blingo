@@ -16,6 +16,7 @@ from .config import (
     COMMISSION,
     ORDER_STATUS,
     CHANNEL_ID,
+    STEAM_STATUS_LABELS
 )
 from .bot_helper import (
     get_welcome_phrase
@@ -35,13 +36,6 @@ from .pay4game_poller import wait_for_payment_and_notify
 router = Router()
 logger = logging.getLogger(__name__)
 
-# Метки статусов пополнения Steam
-STEAM_STATUS_LABELS = {
-    "pending": "⏳ В обработке",
-    "success": "✅ Выполнено",
-    "error":   "❌ Ошибка",
-}
-
 
 # ========== FSM СОСТОЯНИЯ ==========
 class SteamPayState(StatesGroup):
@@ -54,10 +48,7 @@ class SteamPayState(StatesGroup):
 
 # ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 async def safe_delete_message(bot: Bot, chat_id: int, message_id: int) -> None:
-    """
-    Безопасно удаляет сообщение, игнорируя ошибки
-    (например, если сообщение уже удалено).
-    """
+    """Безопасно удаляет сообщение, игнорируя ошибки"""
     try:
         await bot.delete_message(chat_id, message_id)
     except Exception as e:
@@ -212,7 +203,6 @@ async def cancel_payment(callback: CallbackQuery, state: FSMContext):
             success = await change_order_status(order_id, 3)
             if success:
                 logger.info(f"Заказ #{order_id} отменён пользователем {callback.from_user.id}")
-                # Останавливаем фоновую задачу поллинга
                 cancel_polling(order_id)
             else:
                 logger.warning(f"Не удалось отменить заказ #{order_id} для пользователя {callback.from_user.id}")
@@ -229,7 +219,6 @@ async def cancel_payment(callback: CallbackQuery, state: FSMContext):
 
     await state.clear()
 
-    # Удаляем сообщение с кнопками оплаты
     payment_msg_id = await get_payment_message_id(order_id) if order_id else None
     if payment_msg_id:
         await safe_delete_message(callback.bot, callback.message.chat.id, payment_msg_id)
@@ -256,7 +245,6 @@ async def process_login(m: Message, state: FSMContext):
     login = m.text.strip() if m.text else ""
 
     if not STEAM_LOGIN_RE.match(login):
-        # Удаляем сообщение пользователя с неверным логином
         await safe_delete_message(m.bot, m.chat.id, m.message_id)
         await m.answer(
             "❌ <b>Неверный логин Steam.</b>\n\n"
@@ -268,16 +256,13 @@ async def process_login(m: Message, state: FSMContext):
         )
         return
 
-    # Удаляем сообщение пользователя с логином
     await safe_delete_message(m.bot, m.chat.id, m.message_id)
 
-    # Удаляем предыдущее сообщение бота (запрос логина)
     data = await state.get_data()
     prev_bot_msg_id = data.get("bot_message_id")
     if prev_bot_msg_id:
         await safe_delete_message(m.bot, m.chat.id, prev_bot_msg_id)
 
-    # Логин принят — сразу запрашиваем сумму
     msg = await m.answer(
         f"✅ Логин: <code>{login}</code>\n\n"
         f"Введите сумму пополнения в рублях:\n"
@@ -326,10 +311,8 @@ async def process_amount(m: Message, state: FSMContext):
         )
         return
 
-    # Удаляем сообщение пользователя с суммой
     await safe_delete_message(m.bot, m.chat.id, m.message_id)
 
-    # Удаляем предыдущее сообщение бота (подтверждение логина / ввод суммы)
     data = await state.get_data()
     prev_bot_msg_id = data.get("bot_message_id")
     if prev_bot_msg_id:
@@ -363,7 +346,6 @@ async def _proceed_to_payment(
     promo_commission = data.get("promo_commission", COMMISSION)
     total = round(amount * (1 + promo_commission / 100), 2)
 
-    # Удаляем предыдущее сообщение бота (выбор метода оплаты)
     prev_bot_msg_id = data.get("bot_message_id")
     if prev_bot_msg_id:
         await safe_delete_message(message.bot, message.chat.id, prev_bot_msg_id)
@@ -399,7 +381,6 @@ async def _proceed_to_payment(
 
     await state.update_data(order_id=order_id)
 
-    # Формируем текст с учётом промокода
     promo_line = ""
     if promo and promo_commission != COMMISSION:
         if promo_commission == 0:
@@ -419,10 +400,8 @@ async def _proceed_to_payment(
         reply_markup=kb.payment_keyboard(payment_url),
     )
 
-    # Сохраняем message_id сообщения с кнопками оплаты в БД для последующего удаления
     await save_payment_message_id(order_id, payment_msg.message_id)
 
-    # Запускаем фоновый поллинг статуса платежа
     if agent_transaction_id:
         asyncio.create_task(
             wait_for_payment_and_notify(
@@ -441,16 +420,13 @@ async def _proceed_to_payment(
 async def process_promo(m: Message, state: FSMContext):
     promo = m.text.strip() if m.text else ""
 
-    # Удаляем сообщение пользователя с промокодом
     await safe_delete_message(m.bot, m.chat.id, m.message_id)
 
-    # Удаляем предыдущее сообщение бота (запрос промокода)
     data = await state.get_data()
     prev_bot_msg_id = data.get("bot_message_id")
     if prev_bot_msg_id:
         await safe_delete_message(m.bot, m.chat.id, prev_bot_msg_id)
 
-    # Показываем сообщение о проверке
     checking_msg = await m.answer(
         "⏳ <b>Проверяем промокод...</b>",
         parse_mode="HTML",
@@ -458,11 +434,9 @@ async def process_promo(m: Message, state: FSMContext):
 
     result = await validate_promo(promo)
 
-    # Удаляем сообщение о проверке
     await safe_delete_message(m.bot, m.chat.id, checking_msg.message_id)
 
     if result.get("success"):
-        # Промокод применён
         promo_commission = result["commission"]
         await state.update_data(promo=promo, promo_commission=promo_commission)
 
@@ -480,7 +454,6 @@ async def process_promo(m: Message, state: FSMContext):
         await state.update_data(bot_message_id=msg.message_id)
 
     elif result.get("error") == "Сервис проверки промокодов недоступен":
-        # Сервис недоступен — пропускаем со стандартной комиссией
         logger.warning("Сервис проверки промокодов недоступен, пропускаем")
         await state.update_data(promo=promo)
         await state.set_state(SteamPayState.waiting_method)
@@ -494,7 +467,6 @@ async def process_promo(m: Message, state: FSMContext):
         await state.update_data(bot_message_id=msg.message_id)
 
     else:
-        # Промокод не принят — даём ввести заново или пропустить
         error_text = result.get("error", "Неизвестная ошибка")
         await state.set_state(SteamPayState.waiting_promo)
         msg = await m.answer(

@@ -31,14 +31,12 @@ async def main():
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
 
-    # Rate Limiting: не более 5 сообщений/нажатий за 10 секунд на пользователя
     dp.message.middleware(ThrottlingMiddleware(max_calls=5, window_seconds=10.0))
     dp.callback_query.middleware(ThrottlingMiddleware(max_calls=5, window_seconds=10.0))
 
     dp.include_router(router)
     dp.shutdown.register(on_shutdown)
 
-    # Создаём webhook-приложение и передаём ему экземпляр бота
     webhook_app = create_webhook_app(bot)
     runner = web.AppRunner(webhook_app)
     await runner.setup()
@@ -49,7 +47,6 @@ async def main():
         logging.info(f"Webhook-сервер запущен на порту {WEBHOOK_PORT}")
         logging.info("Бот запускается...")
 
-        # Запускаем бота и webhook-сервер параллельно
         await dp.start_polling(bot)
     except Exception as e:
         logging.error(f"Ошибка при запуске: {e}")

@@ -1,0 +1,51 @@
+POST https://kazna.shop/src/api/bot_steam_status.php
+Content-Type: application/json
+
+{
+  "bot_token": "ВАШ_СЕКРЕТНЫЙ_ТОКЕН",
+  "agent_transaction_id": "17701843151184357"
+}
+
+
+Ответ при успехе:
+{
+  "found": true,
+  "steam_account": "username",
+  "steam_amount": 500,
+  "steam_status": "success",
+  "status": "Оплачен"
+}
+
+
+Регистрация платежа:
+POST с json на адрес https://kazna.shop/src/api/bot_steam_register.php
+{
+  "bot_token": "...",
+  "invoice_id": "b123",
+  "agent_transaction_id": "17701843151184357",
+  "payment_id": "uuid-...",
+  "user_id": 123456789,
+  "steam_account": "mysteamlogin",
+  "steam_amount": 500,
+  "payment_amount": 515
+}
+
+Возвращает:
+{ "success": true }
+
+Важно: invoice_id должен начинаться с префикса "b" (например: b123)
+
+
+POST /src/api/bot_validate_promo.php
+
+// Параметры запроса (JSON):
+//   bot_token — секретный токен (из config.php → bot_secret)
+//   promo     — промокод для проверки (до 16 символов)
+//
+// Ответы:
+//   200 { "success": true, "commission": 5 }   — промокод применён
+//   400 { "error": "Promo code is required" }   — promo пуст или > 16 символов
+//   403 { "error": "Forbidden" }                — неверный bot_token
+//   404 { "error": "Promo code not found" }     — промокод не существует
+//   409 { "error": "Promo code limit exceeded" } — лимит использований исчерпан
+//   500 { "error": "..." }                       — ошибка сервера / БД

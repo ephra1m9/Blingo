@@ -21,6 +21,12 @@ ORDER_STATUS = {
     "3": "Отменён"
 }
 
+STEAM_STATUS_LABELS = {
+    "pending": "⏳ В обработке",
+    "success": "✅ Выполнено",
+    "error":   "❌ Ошибка",
+}
+
 # Pay4Game API
 PAYFORGAME_API_KEY: str = os.getenv("PAYFORGAME_API_KEY", "")
 PAYFORGAME_SECRET: str = os.getenv("PAYFORGAME_SECRET", "")

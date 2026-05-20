@@ -23,40 +23,19 @@ _ORDER_ID_ALPHABET = string.ascii_letters + string.digits
 
 
 def _generate_order_id() -> str:
-    """
-    Генерирует уникальный order_id формата b_{8 случайных букв/цифр}.
-
-    Использует secrets.choice (криптографически безопасный рандом).
-    Алфавит: a-z, A-Z, 0-9 (62 символа). Пространство: 62^8 ≈ 218 триллионов комбинаций.
-    """
+    """Генерирует уникальный order_id формата b_{8 случайных букв/цифр}."""
     suffix = ''.join(secrets.choice(_ORDER_ID_ALPHABET) for _ in range(8))
     return f"b_{suffix}"
 
 
 def _make_signature(invoice_id: str, amount: str, email: str, secret: str) -> str:
-    """
-    Формирует HMAC-SHA256 подпись для запроса к Pay4Game.
-    Формат: HMAC-SHA256("{invoice_id}:{amount}:{email}", secret_key)
-    """
+    """Формирует HMAC-SHA256 подпись для запроса к Pay4Game."""
     data = f"{invoice_id}:{amount}:{email}"
     return hmac.new(secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
-async def _register_on_site(
-    invoice_id: str,
-    agent_transaction_id: str,
-    payment_id: str,
-    user_id: int,
-    steam_account: str,
-    steam_amount: int,
-    payment_amount: float,
-    method: str,
-    promo: str | None = None,
-) -> None:
-    """
-    Регистрирует платёж на сайте kazna.shop после успешного создания в Pay4Game.
-    Ошибки не прерывают основной поток — только логируются.
-    """
+async def _register_on_site(invoice_id: str, agent_transaction_id: str, payment_id: str, user_id: int, steam_account: str, steam_amount: int, payment_amount: float, method: str, promo: str | None = None,) -> None:
+    """ Регистрирует платёж на сайте kazna.shop после успешного создания в Pay4Game."""
     payload = {
         "bot_token": BOT_SECRET_KEY,
         "invoice_id": invoice_id,
@@ -84,16 +63,7 @@ async def _register_on_site(
 
 
 async def validate_promo(promo: str) -> dict:
-    """
-    Проверяет промокод через API сайта kazna.shop.
-
-    Args:
-        promo: Промокод для проверки (до 16 символов).
-
-    Returns:
-        {"success": True, "commission": 5} — промокод применён.
-        {"success": False, "error": "..."}  — текст ошибки для пользователя.
-    """
+    """Проверяет промокод через API сайта kazna.shop."""
     payload = {"bot_token": BOT_SECRET_KEY, "promo": promo}
     try:
         async with aiohttp.ClientSession() as session:
@@ -131,27 +101,8 @@ async def validate_promo(promo: str) -> dict:
         return {"success": False, "error": "Сервис проверки промокодов недоступен"}
 
 
-async def create_payment_url(
-    amount_rub: int,
-    steam_login: str,
-    user_id: int,
-    method: str = "sbp",
-    commission: int | None = None,
-    promo: str | None = None,
-) -> tuple[str, str, str]:
-    """
-    Создаёт заказ в БД, формирует платёж в Pay4Game и регистрирует его на сайте.
-
-    Args:
-        amount_rub: Сумма пополнения Steam в рублях (без комиссии).
-        steam_login: Логин Steam пользователя.
-        user_id: Telegram user_id для уведомления после оплаты.
-        method: Способ оплаты (sbp, card, sberpay, tpay, cardkz, carduz, uzum).
-        commission: Процент комиссии (если None — используется COMMISSION из config).
-
-    Returns:
-        Кортеж (payment_url, order_id).
-    """
+async def create_payment_url(amount_rub: int, steam_login: str, user_id: int, method: str = "sbp", commission: int | None = None, promo: str | None = None,) -> tuple[str, str, str]:
+    """Создаёт заказ в БД, формирует платёж в Pay4Game и регистрирует его на сайте."""
     if not PAYFORGAME_API_KEY or not PAYFORGAME_SECRET:
         raise ValueError("PAYFORGAME_API_KEY или PAYFORGAME_SECRET не заданы в переменных окружения")
 

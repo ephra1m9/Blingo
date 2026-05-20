@@ -22,10 +22,7 @@ WINDOW_SECONDS: float = 60.0
 
 
 class WebhookThrottlingMiddleware:
-    """
-    aiohttp middleware, ограничивающий частоту запросов по IP-адресу клиента.
-    Применяется ко всем маршрутам приложения.
-    """
+    """aiohttp middleware, ограничивающий частоту запросов по IP-адресу клиента. Применяется ко всем маршрутам приложения."""
 
     def __init__(
         self,
@@ -34,17 +31,12 @@ class WebhookThrottlingMiddleware:
     ) -> None:
         self.max_calls = max_calls
         self.window_seconds = window_seconds
-        # ip -> deque of timestamps
         self._calls: dict[str, deque] = defaultdict(deque)
 
     def _get_client_ip(self, request: web.Request) -> str:
-        """
-        Извлекает IP клиента с учётом заголовков реверс-прокси.
-        Приоритет: X-Forwarded-For > X-Real-IP > peername.
-        """
+        """Извлекает IP клиента с учётом заголовков реверс-прокси. Приоритет: X-Forwarded-For > X-Real-IP > peername."""
         forwarded_for = request.headers.get("X-Forwarded-For")
         if forwarded_for:
-            # Берём первый IP из цепочки (оригинальный клиент)
             return forwarded_for.split(",")[0].strip()
 
         real_ip = request.headers.get("X-Real-IP")
@@ -58,14 +50,10 @@ class WebhookThrottlingMiddleware:
         return "unknown"
 
     def _is_throttled(self, ip: str) -> bool:
-        """
-        Проверяет, превышен ли лимит для данного IP.
-        Возвращает True если лимит превышен.
-        """
+        """Проверяет, превышен ли лимит для данного IP. Возвращает True если лимит превышен."""
         now = time.monotonic()
         window = self._calls[ip]
 
-        # Удаляем вызовы вне окна
         while window and now - window[0] > self.window_seconds:
             window.popleft()
 

@@ -31,12 +31,7 @@ _active_polling_tasks: dict[str, asyncio.Task] = {}
 
 
 def cancel_polling(order_id: str) -> bool:
-    """
-    Отменяет фоновую задачу поллинга для указанного заказа.
-
-    Returns:
-        True если задача была найдена и отменена, иначе False.
-    """
+    """Отменяет фоновую задачу поллинга для указанного заказа."""
     task = _active_polling_tasks.pop(order_id, None)
     if task and not task.done():
         task.cancel()
@@ -46,13 +41,7 @@ def cancel_polling(order_id: str) -> bool:
 
 
 async def poll_payment_status(agent_transaction_id: str) -> dict | None:
-    """
-    Однократно запрашивает статус платежа у сайта.
-
-    Returns:
-        dict с полями found, steam_account, steam_amount, steam_status, status
-        или None при ошибке сети.
-    """
+    """Однократно запрашивает статус платежа у сайта."""
     payload = {
         "bot_token": BOT_SECRET_KEY,
         "agent_transaction_id": agent_transaction_id,
@@ -76,22 +65,8 @@ async def poll_payment_status(agent_transaction_id: str) -> dict | None:
         return None
 
 
-async def wait_for_payment_and_notify(
-    bot,
-    user_id: int,
-    agent_transaction_id: str,
-    order_id: str,
-) -> None:
-    """
-    Фоновая задача: опрашивает сайт до получения финального статуса платежа,
-    затем уведомляет пользователя в Telegram.
-
-    Args:
-        bot: Экземпляр aiogram Bot.
-        user_id: Telegram user_id для уведомления.
-        agent_transaction_id: ID транзакции Pay4Game.
-        order_id: ID заказа в нашей БД (для логов).
-    """
+async def wait_for_payment_and_notify(bot, user_id: int, agent_transaction_id: str, order_id: str,) -> None:
+    """Фоновая задача: опрашивает сайт до получения финального статуса платежа, затем уведомляет пользователя в Telegram."""
     from .db.db_helper import update_order_after_payment, update_steam_status, get_order, get_payment_message_id
 
     # Регистрируем задачу в словаре активных поллингов

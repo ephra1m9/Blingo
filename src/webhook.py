@@ -13,7 +13,7 @@ from .db.db_helper import (
     get_order_by_agent_transaction_id,
     get_payment_message_id,
 )
-from .config import COMMISSION, PAYFORGAME_SECRET, BOT_SECRET_KEY
+from .config import COMMISSION, PAYFORGAME_SECRET, BOT_SECRET_KEY, STEAM_STATUS_LABELS
 from .webhook_throttling import WebhookThrottlingMiddleware
 
 
@@ -30,13 +30,6 @@ async def _safe_delete_message(bot: Bot, chat_id: int, message_id: int) -> None:
 # Экземпляр throttling-middleware для вебхука:
 # не более 10 запросов с одного IP за 60 секунд
 _webhook_throttler = WebhookThrottlingMiddleware(max_calls=10, window_seconds=60.0)
-
-# Статусы пополнения Steam для отображения пользователю
-STEAM_STATUS_LABELS = {
-    "pending": "⏳ В обработке",
-    "success": "✅ Выполнено",
-    "error":   "❌ Ошибка",
-}
 
 
 def create_webhook_app(bot: Bot) -> web.Application:
@@ -185,10 +178,7 @@ async def _handle_status_webhook(bot: Bot, data: dict) -> None:
 
 
 async def _handle_status_steam_webhook(bot: Bot, data: dict) -> None:
-    """
-    Обрабатывает вебхук type=status_steam — результат пополнения Steam.
-    Сохраняет steam_status в БД и уведомляет пользователя.
-    """
+    """Обрабатывает вебхук type=status_steam — результат пополнения Steam. Сохраняет steam_status в БД и уведомляет пользователя."""
     agent_transaction_id: str = data.get("agent_transaction_id", "")
     steam_status: str = data.get("status", "")
     steam_account: str = data.get("steam_account", "")
@@ -204,10 +194,8 @@ async def _handle_status_steam_webhook(bot: Bot, data: dict) -> None:
         logger.warning("status_steam webhook: отсутствует agent_transaction_id")
         return
 
-    # Сохраняем steam_status в БД
     await update_steam_status(agent_transaction_id, steam_status)
 
-    # Находим заказ для уведомления пользователя
     order = await get_order_by_agent_transaction_id(agent_transaction_id)
     if order is None:
         logger.warning(f"status_steam webhook: заказ не найден для agent_transaction_id={agent_transaction_id}")
@@ -216,7 +204,6 @@ async def _handle_status_steam_webhook(bot: Bot, data: dict) -> None:
     user_id = order.user_id
     status_label = STEAM_STATUS_LABELS.get(steam_status, f"Статус: {steam_status}")
 
-    # Удаляем сообщение с кнопками оплаты
     payment_msg_id = await get_payment_message_id(order.order_id)
     if payment_msg_id:
         await _safe_delete_message(bot, user_id, payment_msg_id)
@@ -248,27 +235,22 @@ async def _handle_status_steam_webhook(bot: Bot, data: dict) -> None:
 
 
 async def handle_site_status_request(request: web.Request) -> web.Response:
-    """
-    Обрабатывает запрос от сайта kazna.shop на получение статуса транзакции.
-
+    """Обрабатывает запрос от сайта kazna.shop на получение статуса транзакции.
     Запрос:
         POST /src/api/bot_steam_status.php
         {"bot_token": "...", "agent_transaction_id": "..."}
-
     Ответ при успехе:
         {"found": true, "steam_account": "...", "steam_amount": 500,
          "steam_status": "success", "status": "Оплачен"}
-
     Ответ при ненайденном заказе:
-        {"found": false}
-    """
+        {"found": false}"""
     try:
         data = await request.json()
     except Exception as e:
         logger.warning(f"bot_steam_status: ошибка чтения JSON: {e}")
         return web.json_response({"error": "Bad Request"}, status=400)
 
-    # Проверяем токен
+    # Проверка токена
     bot_token = data.get("bot_token", "")
     if not BOT_SECRET_KEY or bot_token != BOT_SECRET_KEY:
         logger.warning("bot_steam_status: неверный bot_token")
